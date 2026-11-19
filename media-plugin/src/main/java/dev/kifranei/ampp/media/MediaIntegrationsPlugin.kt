@@ -125,7 +125,15 @@ class MediaIntegrationsPlugin : AmppPlugin() {
             PlayerDialogsIntegration(build, confirmation = true, sleep = false).install()
         }
         install(text.sleepGlass, configured.playerGlass, "shared:applemusic-sleep-timer") {
-            PlayerDialogsIntegration(build, confirmation = false, sleep = true).install()
+            PlayerDialogsIntegration(
+                build,
+                confirmation = false,
+                sleep = true,
+                sleepTimerStopAfterTrack = { store.read().sleepTimerStopAfterTrack },
+                onSleepTimerStopAfterTrackChanged = { enabled ->
+                    writer.execute { store.write(store.read().copy(sleepTimerStopAfterTrack = enabled)) }
+                },
+            ).install()
         }
         // OPlus ROMs (ColorOS / realme UI / OxygenOS) ship a larger default DPI that breaks the volume bar.
         if (configured.volumeBar && OplusRomDetector.current) {

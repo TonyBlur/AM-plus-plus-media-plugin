@@ -95,4 +95,13 @@ class MediaSettingsStoreTest {
             assertTrue(store.read().playerGlass)
         }
     }
+    @Test fun `sleep timer stop-after-track switch defaults off and round trips`() {
+        assertFalse(MediaSettings().sleepTimerStopAfterTrack)
+        assertFalse(MediaSettings.decode("{}").sleepTimerStopAfterTrack)
+        assertTrue(MediaSettings.decode("{\"sleep_timer_stop_after_track\":true}").sleepTimerStopAfterTrack)
+        val store = MediaSettingsStore(temporary.root)
+        store.write(MediaSettings(sleepTimerStopAfterTrack = true))
+        assertTrue(store.read().sleepTimerStopAfterTrack)
+        assertTrue(store.read().encode().contains("sleep_timer_stop_after_track"))
+    }
 }

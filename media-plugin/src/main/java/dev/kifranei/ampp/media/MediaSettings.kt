@@ -33,6 +33,8 @@ internal data class MediaSettings(
     // crossfade 期间当前歌也被变速，切换瞬间 AudioTrack 重建会导致"音乐被切断+纯杂音"（用户实测）。
     val autoTransitionSpeedMatch: Boolean = false,
     val autoTransitionAnimate: Boolean = true,
+    /** 关定时后继续播放，直至当前列表中的最后一个曲目播放结束再停止。 */
+    val sleepTimerStopAfterTrack: Boolean = false,
     /** Flyme / Meizu status-bar ticker lyrics (Halcyon TickerBridge). Default off. */
     val meizuTicker: Boolean = false,
     /** Write current lyric into the media notification / session title (Halcyon 媒体通知歌词). */
@@ -53,6 +55,7 @@ internal data class MediaSettings(
         put("auto_transition_duration", autoTransitionDuration)
         put("auto_transition_speed_match", autoTransitionSpeedMatch)
         put("auto_transition_animate", autoTransitionAnimate)
+        put("sleep_timer_stop_after_track", sleepTimerStopAfterTrack)
         put("meizu_ticker", meizuTicker)
         put("media_notification_lyrics", mediaNotificationLyrics)
         put("super_lyric", superLyric)
@@ -77,6 +80,7 @@ internal data class MediaSettings(
                 (json.opt("auto_transition_duration") as? Int ?: 12).coerceIn(2, 20),
                 json.opt("auto_transition_speed_match") as? Boolean ?: false,
                 json.opt("auto_transition_animate") as? Boolean ?: true,
+                json.opt("sleep_timer_stop_after_track") as? Boolean ?: false,
                 json.opt("meizu_ticker") as? Boolean ?: false,
                 json.opt("media_notification_lyrics") as? Boolean ?: false,
                 json.opt("super_lyric") as? Boolean ?: false,

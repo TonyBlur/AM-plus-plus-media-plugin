@@ -26,6 +26,10 @@ internal class MediaSettingsText private constructor(private val chinese: Boolea
     val moreGlass get() = text("液态玻璃更多菜单", "Liquid Glass More menu")
     val confirmationGlass get() = text("液态玻璃删除确认弹窗", "Liquid Glass deletion confirmation dialog")
     val sleepGlass get() = text("液态玻璃睡眠定时", "Liquid Glass sleep timer")
+    val sleepTimerStopAfterTrack get() = text("播放完最后一个曲目再停止", "Stop after the last track finishes")
+    val sleepTimerStopAfterTrackDescription get() = text(
+        "倒计时结束后不立即停止，等当前列表播放完最后一个曲目后再停止。",
+        "When the timer expires, finish the remaining tracks in the current queue and stop afterward.")
     val playerHandle get() = text("播放页顶部把手", "Player screen handle")
     val systemCorners get() = text("播放页系统圆角", "Use system corner radius on the player screen")
     val volumeBar get() = text("播放页音量条", "Player screen volume slider")
