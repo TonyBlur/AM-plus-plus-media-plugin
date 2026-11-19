@@ -13,9 +13,13 @@ import java.lang.reflect.Executable
 class PluginProfileSelectionTest {
     private val assets = File("src/main/assets")
     private val sources = File("src/main/java")
-    private val supported = listOf(1606L, 1607L, 1609L, 1611L, 1613L, 1614L)
-    // 1614 dropped the "-beta" suffix from versionName; selection stays exact on the name each build reports.
-    private fun versionName(code: Long) = if (code >= 1614L) "7.0.0" else "7.0.0-beta"
+    private val supported = listOf(1606L, 1607L, 1609L, 1611L, 1613L, 1614L, 1622L)
+    // 1614 dropped the "-beta" suffix; 1622 is the 7.0.1 stable build.
+    private fun versionName(code: Long) = when {
+        code >= 1622L -> "7.0.1"
+        code >= 1614L -> "7.0.0"
+        else -> "7.0.0-beta"
+    }
 
     private fun entries() = ProfileIndex.parse(File(assets, ProfileIndex.ASSET).readText())
     private fun document(entry: ProfileEntry) = JSONObject(File(assets, entry.asset).readText())
