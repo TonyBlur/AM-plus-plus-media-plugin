@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "dev.kifranei.ampp.media"
-    compileSdk = 37
+    compileSdk = 36
     defaultConfig { minSdk = 28 }
     buildFeatures { compose = true }
     compileOptions {
@@ -89,9 +89,11 @@ val dex = tasks.register<JavaExec>("pluginDex") {
     mainClass = "com.android.tools.r8.D8"
     doFirst {
         val sdk = androidComponents.sdkComponents.sdkDirectory.get().asFile
-        val androidJar = listOf("android-37", "android-37.0").map { sdk.resolve("platforms/$it/android.jar") }
+        val androidJar = listOf("android-37", "android-37.0", "android-36", "android-36.0").map { sdk.resolve("platforms/$it/android.jar") }
             .first { it.isFile }
-        classpath = files(sdk.resolve("build-tools/37.0.0/lib/d8.jar"))
+        val d8Jar = listOf("37.0.0", "36.0.0", "35.0.0").map { sdk.resolve("build-tools/$it/lib/d8.jar") }
+            .first { it.isFile }
+        classpath = files(d8Jar)
         val destination = dexDirectory.get().asFile
         destination.mkdirs()
         // Avoid retaining old secondary DEX files between incremental packages.

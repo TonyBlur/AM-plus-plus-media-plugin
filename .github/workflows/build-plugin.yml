@@ -31,7 +31,7 @@ jobs:
           test -n "$SDKMANAGER" && test -x "$SDKMANAGER"
           export PATH="$(dirname "$SDKMANAGER"):$(dirname "$(dirname "$SDKMANAGER")")/bin:$ANDROID_HOME/platform-tools:$PATH"
           yes | "$SDKMANAGER" --licenses >/dev/null
-          "$SDKMANAGER" "platforms;android-37" "build-tools;37.0.0"
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
           echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
 
       - name: Build plugin ZIP
