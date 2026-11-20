@@ -13,9 +13,10 @@ import java.lang.reflect.Executable
 class PluginProfileSelectionTest {
     private val assets = File("src/main/assets")
     private val sources = File("src/main/java")
-    private val supported = listOf(1606L, 1607L, 1609L, 1611L, 1613L, 1614L, 1622L)
+    private val supported = listOf(1606L, 1607L, 1609L, 1611L, 1613L, 1614L, 1622L, 1624L)
     // 1614 dropped the "-beta" suffix; 1622 is the 7.0.1 stable build.
     private fun versionName(code: Long) = when {
+        code == 1624L -> "7.0.2"
         code >= 1622L -> "7.0.1"
         code >= 1614L -> "7.0.0"
         else -> "7.0.0-beta"
