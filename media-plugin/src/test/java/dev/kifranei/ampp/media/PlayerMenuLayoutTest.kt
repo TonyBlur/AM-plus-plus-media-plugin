@@ -31,27 +31,27 @@ class PlayerMenuLayoutTest {
     @Test fun `long menu floats clear of system insets and keeps room for player controls`() {
         val result = PlayerMenuLayout.bounds(1280, 2772, 3.25f, 130, 80, 2400)
         assertEquals((1280 * .68f).toInt(), result.width)
-        assertEquals((1280 - result.width) / 2, result.left)
+        assertEquals(120 + (1280 - 120 - 60 - result.width) / 2, result.left)
         assertTrue(result.top >= 130 + 39)
         assertTrue(result.top + result.height <= 2772 - 80)
         assertTrue(result.height < 2400)
     }
     @Test fun `short and long menus stay centered in the viewport`() {
         val result = PlayerMenuLayout.bounds(393, 852, 1f, 44, 34, 180)
-        assertEquals((852 - 180) / 2, result.top)
+        assertEquals(44 + (852 - 44 - 34 - 180) / 2, result.top)
         assertEquals((393 - result.width) / 2, result.left)
         assertEquals(180, result.height)
         val longer = PlayerMenuLayout.bounds(393, 852, 1f, 44, 34, 2400)
         assertEquals((393 - longer.width) / 2, longer.left)
-        assertEquals((852 - longer.height) / 2, longer.top)
+        assertEquals(44 + (852 - 44 - 34 - longer.height) / 2, longer.top)
         val edge = PlayerMenuLayout.bounds(240, 320, 1f, 20, 20, 2000)
         assertEquals((240 - edge.width) / 2, edge.left)
-        assertEquals((320 - edge.height) / 2, edge.top)
+        assertEquals(20 + (320 - 20 - 20 - edge.height) / 2, edge.top)
     }
     @Test fun `reference phone viewport keeps the card centered`() {
         val result = PlayerMenuLayout.bounds(1280, 2772, 3.25f, 152, 80, 2400)
-        assertEquals((1280 - result.width) / 2, result.left)
-        assertEquals((2772 - result.height) / 2, result.top)
+        assertEquals(120 + (1280 - 120 - 60 - result.width) / 2, result.left)
+        assertEquals(152 + (2772 - 152 - 80 - result.height) / 2, result.top)
         assertTrue(result.width > 0)
     }
     @Test fun `display cutouts on either side remain outside the menu`() {
