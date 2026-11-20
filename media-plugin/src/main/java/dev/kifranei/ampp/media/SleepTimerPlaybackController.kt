@@ -77,8 +77,11 @@ internal class SleepTimerPlaybackController(
                 val create = PluginProfiles.method("more-dialog-create")
                 MediaRuntime.observeMethod(create, object : PluginMethodHook() {
                     override fun afterHookedMethod(param: MethodHookParam) {
-                        if (param.throwable != null || !sleepType.isInstance(param.thisObject)) return
                         val dialog = param.result as? Dialog ?: return
+                        if (param.throwable != null) return
+                        val ownerMatches = runCatching { sleepType.isInstance(param.thisObject) }.getOrDefault(false)
+                        val textMatches = looksLikeSleepTimerDialog(dialog)
+                        if (!ownerMatches && !textMatches) return
                         val activity = dialog.context as? android.app.Activity ?: return
                         val listId = activity.resources.getIdentifier(
                             playerDialogs.getString("sleepListId"), "id", build.packageName)
@@ -207,6 +210,19 @@ internal class SleepTimerPlaybackController(
                 false
             }
         }
+    }
+
+    private fun looksLikeSleepTimerDialog(dialog: Dialog): Boolean {
+        val text = buildString {
+            fun visit(view: View) {
+                if (view is TextView) append(view.text?.toString().orEmpty()).append('\n')
+                if (view is ViewGroup) for (index in 0 until view.childCount) visit(view.getChildAt(index))
+            }
+            dialog.window?.decorView?.let(::visit)
+        }.lowercase()
+        return text.contains("sleep timer") ||
+            text.contains("睡眠定时") ||
+            Regex("\\d+\\s*(分钟|小时|min(?:ute)?s?|hrs?|hours?)").containsMatchIn(text)
     }
 
     private fun shouldSuppressNativeStop(): Boolean {
