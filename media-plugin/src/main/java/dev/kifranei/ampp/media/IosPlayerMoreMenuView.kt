@@ -98,9 +98,13 @@ internal class IosPlayerMoreMenuView(private val activity: Activity, private val
         gravity = Gravity.CENTER_VERTICAL
         setPadding(dp(16), dp(12), dp(14), dp(12))
         minimumHeight = dp(if (entry.subtitle.isNullOrBlank()) 48 else 64)
-        val drawable = entry.icon ?: activity.resources.getIdentifier(
-            if (entry.action.key == "OPEN_ALBUM") "actionsheet_musicbadgeplus" else "actionsheet_show_artist",
-            "drawable", activity.packageName).takeIf { it != 0 }?.let(activity::getDrawable)
+        val symbol = when (entry.action.key) {
+            "OPEN_ALBUM" -> "actionsheet_musicbadgeplus"
+            "OPEN_ARTIST", "SHOW_ARTIST" -> "actionsheet_show_artist"
+            else -> null
+        }
+        val drawable = entry.icon ?: symbol?.let { activity.resources.getIdentifier(it, "drawable", activity.packageName) }
+            ?.takeIf { it != 0 }?.let(activity::getDrawable)
         addView(icon(drawable), LinearLayout.LayoutParams(dp(22), dp(24)).apply { marginEnd = dp(16) })
         val text = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL

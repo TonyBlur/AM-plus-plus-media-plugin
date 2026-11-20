@@ -37,8 +37,12 @@ internal class NativePlayerMoreMenu(private val activity: Activity, private val 
     private val enabled = PluginProfiles.method("more-item-enabled")
     private val checked = PluginProfiles.method("more-item-checked")
     private val headerType = title.declaringClass
-    private var navigation: List<NativePlayerMenuEntry> = emptyList()
-    private val navigationText = mutableMapOf<String, TextView>()
+    private val albumItem = PluginProfiles.document.optJSONObject("playerMoreMenu")
+        ?.optString("albumItemField")?.takeIf(String::isNotEmpty)?.let(PluginProfiles::field)
+    private val albumTitle = albumItem?.let { PluginProfiles.method("content-download-item-title") }
+    // Read the bound views after attachment too: Android Data Binding can populate
+    // text, visibility and listeners after the adapter's bind call returns.
+    private var navigationViews: List<Pair<String, View>> = emptyList()
 
     fun entries(): List<NativePlayerMenuEntry> {
         val main = commands.get(source) as List<*>
@@ -79,9 +83,34 @@ internal class NativePlayerMoreMenu(private val activity: Activity, private val 
                     integration.downloadTtml(activity, id, name)
                 })
         } ?: emptyList()
-        return result + navigation.map { entry ->
-            val text = checkNotNull(navigationText[entry.action.key])
-            entry.copy(subtitle = text.text.toString(), enabled = text.isEnabled)
+        return result + navigationViews.mapIndexedNotNull { index, (action, view) ->
+            if (view.visibility != View.VISIBLE || !view.hasOnClickListeners()) return@mapIndexedNotNull null
+            val nativeText = if (action == "OPEN_ALBUM" && albumItem != null) {
+                albumItem.get(dispatcher)?.let { albumTitle?.invoke(it) as? String }
+            } else {
+                (view as? TextView)?.text?.toString()
+            }?.takeIf(String::isNotBlank) ?: return@mapIndexedNotNull null
+            val key = action.ifEmpty {
+                val idName = if (view.id == View.NO_ID) "" else runCatching {
+                    activity.resources.getResourceEntryName(view.id)
+                }.getOrDefault("")
+                when {
+                    "artist" in idName -> "OPEN_ARTIST"
+                    "album" in idName -> "OPEN_ALBUM"
+                    else -> "NATIVE_HEADER_$index"
+                }
+            }
+            val labelId = when (key) {
+                "OPEN_ARTIST" -> "player_go_to_artist"
+                "OPEN_ALBUM" -> "player_go_to_album"
+                else -> null
+            }?.let { activity.resources.getIdentifier(it, "string", activity.packageName) } ?: 0
+            val label = if (labelId != 0) activity.getString(labelId) else view.contentDescription?.toString()
+                ?.takeIf { it.isNotBlank() } ?: nativeText
+            NativePlayerMenuEntry(PlayerMenuAction(key, index), label, nativeText.takeIf { it != label },
+                null, view.isEnabled, false) {
+                if (view.visibility == View.VISIBLE && view.isEnabled) view.performClick()
+            }
         } + download
     }
 
@@ -95,15 +124,16 @@ internal class NativePlayerMoreMenu(private val activity: Activity, private val 
         PluginProfiles.method("more-adapter-bind-holder").invoke(adapter, holder, 0, emptyList<Any>())
         // DataBinding clears XML binding tags. Read its verified view fields instead.
         val binding = PluginProfiles.field("more-holder-binding").get(holder)
-        navigation = listOf("OPEN_ALBUM" to "more-header-album", "OPEN_ARTIST" to "more-header-artist").mapNotNull { (key, field) ->
-            val text = (PluginProfiles.field(field).get(binding) as TextView)
-                .takeIf { it.text.isNotBlank() && it.hasOnClickListeners() } ?: return@mapNotNull null
-            val label = activity.getString(activity.resources.getIdentifier(
-                if (key == "OPEN_ALBUM") "player_go_to_album" else "player_go_to_artist", "string", activity.packageName).takeIf { it != 0 }
-                ?: android.R.string.untitled)
-            navigationText[key] = text
-            NativePlayerMenuEntry(PlayerMenuAction(key, 0), label, text.text.toString(), null, text.isEnabled, false) { text.performClick() }
-        }
+        val actions = listOf(
+            "OPEN_ALBUM" to "more-header-album",
+            "OPEN_ARTIST" to "more-header-artist",
+        )
+        navigationViews = actions.mapNotNull { (action, field) ->
+            val button = PluginProfiles.field(field).get(binding) as? View ?: return@mapNotNull null
+            // 1624 binds album navigation to the header container and artist navigation to its subtitle.
+            if (albumItem == null && button !is TextView) return@mapNotNull null
+            (if (albumItem == null) "" else action) to button
+        }.distinctBy { it.second }
     }
 }
 

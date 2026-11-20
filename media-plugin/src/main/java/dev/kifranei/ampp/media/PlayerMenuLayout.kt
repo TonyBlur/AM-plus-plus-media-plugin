@@ -35,7 +35,17 @@ internal object PlayerMenuLayout {
             (root.top + root.height - (window.top + window.height - insets.bottom)).coerceIn(0, root.height.coerceAtLeast(0)),
         )
 
-    /** Keep the original upper-right card position independent of native player animations. */
+    fun place(centered: PlayerMenuBounds, width: Int, height: Int, safe: PlayerMenuInsets,
+        x: Int?, y: Int?): PlayerMenuBounds {
+        if (x == null || y == null) return centered
+        val left = (x - centered.width).coerceIn(safe.left, maxOf(safe.left, width - safe.right - centered.width))
+        val top = if (y < height / 2) y else y - centered.height
+        return centered.copy(left = left, top = top.coerceIn(safe.top, maxOf(safe.top, height - safe.bottom - centered.height)))
+    }
+
+    /** Center the native more-menu card independent of native player animations.
+     *  Its visual origin remains the trigger button through the popup motion pivot.
+     */
     fun bounds(width: Int, height: Int, density: Float, topInset: Int, bottomInset: Int,
         contentHeight: Int, leftInset: Int = 0, rightInset: Int = 0): PlayerMenuBounds {
         val viewportWidth = width.coerceAtLeast(1)
@@ -51,10 +61,10 @@ internal object PlayerMenuLayout {
         val margin = dp(24).coerceAtMost(safeWidth / 8)
         val menuWidth = minOf(dp(340), (safeWidth * .68f).toInt()).coerceAtLeast(1)
             .coerceAtMost((safeWidth - margin * 2).coerceAtLeast(1))
-        val minimumTop = safeTop + dp(12).coerceAtMost(safeHeight / 8)
-        val maximumBottom = viewportHeight - safeBottom - dp(24).coerceAtMost(safeHeight / 8)
-        val maxHeight = minOf(dp(620), (viewportHeight * .60f).toInt(), maximumBottom - minimumTop)
+        val maxHeight = minOf(dp(620), (safeHeight * .72f).toInt()).coerceAtLeast(1)
         val menuHeight = contentHeight.coerceIn(1, maxHeight.coerceAtLeast(1))
-        return PlayerMenuBounds(viewportWidth - safeRight - margin - menuWidth, minimumTop, menuWidth, menuHeight)
+        val left = safeLeft + (safeWidth - menuWidth) / 2
+        val top = safeTop + (safeHeight - menuHeight) / 2
+        return PlayerMenuBounds(left, top, menuWidth, menuHeight)
     }
 }

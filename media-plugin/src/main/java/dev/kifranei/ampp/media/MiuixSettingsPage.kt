@@ -159,6 +159,15 @@ internal fun MiuixSettingsPage(
                             summary = text.playerGlassDescription,
                         )
                         SwitchPreference(
+                            checked = state.sleepTimerStopAfterTrack,
+                            onCheckedChange = {
+                                state = state.copy(sleepTimerStopAfterTrack = it)
+                                onPersist(state)
+                            },
+                            title = text.sleepTimerStopAfterTrack,
+                            summary = text.sleepTimerStopAfterTrackDescription,
+                        )
+                        SwitchPreference(
                             checked = state.playerHandle,
                             onCheckedChange = {
                                 state = state.copy(playerHandle = it)

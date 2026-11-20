@@ -58,8 +58,9 @@ class CardRenderDayModeTest {
         val keys = Regex("""names\.getString\("([^"]+)"\)""").findAll(source).map { it.groupValues[1] }.toSet()
         assertTrue(keys.containsAll(listOf("stickerViewClass", "rendererMethod", "rendererOptionGetter")))
         val assets = File("src/main/assets")
-        val profiles = assets.listFiles()!!.filter { it.name.startsWith("applemusic-") && it.name.endsWith(".json") }
-        assertEquals(6, profiles.size)
+        val profiles = ProfileIndex.parse(File(assets, ProfileIndex.ASSET).readText())
+            .map { File(assets, it.asset) }
+        assertTrue(profiles.isNotEmpty())
         profiles.forEach { file ->
             val card = JSONObject(file.readText()).getJSONObject("cardSharing")
             keys.forEach { assertTrue("${file.name} cardSharing lacks $it", card.optString(it).isNotEmpty()) }

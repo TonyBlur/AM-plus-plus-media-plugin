@@ -45,6 +45,7 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib:2.4.10")
     implementation("io.github.proify.lyricon:provider:0.1.70")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    implementation("androidx.dynamicanimation:dynamicanimation:1.0.0")
     // DexKit Java API is dex'd into code.jar. Native libdexkit.so is NOT packaged in the
     // plugin ZIP (SDK allows only plugin.json/code.jar/assets/); runtime loads it from AM++.
     implementation("org.luckypray:dexkit:2.2.0")
@@ -89,28 +90,46 @@ val dex = tasks.register<JavaExec>("pluginDex") {
     mainClass = "com.android.tools.r8.D8"
     doFirst {
         val sdk = androidComponents.sdkComponents.sdkDirectory.get().asFile
-        val androidJar = listOf("android-37", "android-37.0").map { sdk.resolve("platforms/$it/android.jar") }
+        val androidJar = listOf("android-37", "android-37.0", "android-36", "android-36.0").map { sdk.resolve("platforms/$it/android.jar") }
             .first { it.isFile }
-        classpath = files(sdk.resolve("build-tools/37.0.0/lib/d8.jar"))
+        val d8Jar = listOf("37.0.0", "36.0.0", "35.0.0").map { sdk.resolve("build-tools/$it/lib/d8.jar") }
+            .first { it.isFile }
+        classpath = files(d8Jar)
         val destination = dexDirectory.get().asFile
         destination.mkdirs()
         // Avoid retaining old secondary DEX files between incremental packages.
         destination.listFiles()?.filter { it.name.matches(Regex("classes[0-9]*\\.dex")) }?.forEach { it.delete() }
         val inputs = mutableListOf<File>()
-        fun classes(file: File): File {
+        fun classes(file: File): File? {
             if (file.extension != "aar") return file
             val output = layout.buildDirectory.file("plugin/jars/${file.nameWithoutExtension}.jar").get().asFile
             output.parentFile.mkdirs()
-            JarFile(file).use { jar -> jar.getInputStream(jar.getJarEntry("classes.jar")).use { input ->
-                output.outputStream().use(input::copyTo)
-            } }
+            JarFile(file).use { jar ->
+                val entry = jar.getJarEntry("classes.jar") ?: return null
+                jar.getInputStream(entry).use { input ->
+                    output.outputStream().use(input::copyTo)
+                }
+            }
             return output
         }
-        inputs += classes(layout.buildDirectory.file("outputs/aar/media-plugin-release.aar").get().asFile)
+        classes(layout.buildDirectory.file("outputs/aar/media-plugin-release.aar").get().asFile)?.let(inputs::add)
         fun jars(configuration: String) = configurations.getByName(configuration).incoming.artifactView {
             attributes.attribute(org.gradle.api.artifacts.type.ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE, "android-classes-jar")
         }.files.files
-        inputs += jars("releaseRuntimeClasspath")
+        val forbiddenGroups = setOf(
+            "androidx.compose",
+            "org.jetbrains.compose",
+            "com.kyant",
+            "dev.amenhancer",
+            "io.github.libxposed",
+        )
+        inputs += configurations.getByName("releaseRuntimeClasspath").resolvedConfiguration.resolvedArtifacts
+            .mapNotNull { artifact ->
+                val id = artifact.moduleVersion.id
+                if (forbiddenGroups.any { prefix -> id.group == prefix || id.group.startsWith("$prefix.") } ||
+                    id.name.lowercase().contains("backdrop")) null
+                else classes(artifact.file)
+        }.distinctBy { it.canonicalPath }
         val references = jars("releaseCompileClasspath")
         setArgs(listOf("--release", "--min-api", "28", "--lib", androidJar.path,
             "--output", destination.path) + references.flatMap { listOf("--classpath", it.path) } + inputs.map { it.path })

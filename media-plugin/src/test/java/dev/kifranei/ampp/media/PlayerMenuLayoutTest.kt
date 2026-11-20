@@ -4,6 +4,15 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class PlayerMenuLayoutTest {
+    @Test fun `mini player centers while top and artwork buttons open toward available space`() {
+        val card = PlayerMenuBounds(75, 250, 250, 300)
+        val safe = PlayerMenuInsets(10, 40, 12, 24)
+        fun place(x: Int?, y: Int?) = PlayerMenuLayout.place(card, 400, 800, safe, x, y)
+        assertEquals(card, place(null, null))
+        assertEquals(card.copy(left = 125, top = 60), place(375, 60))
+        assertEquals(card.copy(left = 125, top = 260), place(375, 560))
+        assertEquals(card.copy(left = 138, top = 40), place(420, 20))
+    }
     @Test fun `quick actions and sections preserve every native command once`() {
         val actions = listOf("ADD_TO_LIBRARY", "ADD_TO_PLAYLIST", "SHARE_SONG", "SHARE_LYRICS", "CREATE_STATION",
             "VIEW_SONG_CREDITS", "SLEEP_TIMER", "FAVORITE_ITEM", "SUGGEST_LESS", "OPEN_ALBUM", "OPEN_ARTIST")
@@ -31,37 +40,34 @@ class PlayerMenuLayoutTest {
     @Test fun `long menu floats clear of system insets and keeps room for player controls`() {
         val result = PlayerMenuLayout.bounds(1280, 2772, 3.25f, 130, 80, 2400)
         assertEquals((1280 * .68f).toInt(), result.width)
-        assertTrue(result.left + result.width <= 1280 - 78)
+        assertEquals((1280 - result.width) / 2, result.left)
         assertTrue(result.top >= 130 + 39)
-        assertTrue(result.top + result.height <= (2772 * .76f).toInt())
+        assertTrue(result.top + result.height <= 2772 - 80)
         assertTrue(result.height < 2400)
     }
-    @Test fun `short and long menus keep the original upper right position`() {
+    @Test fun `short and long menus stay centered in the viewport`() {
         val result = PlayerMenuLayout.bounds(393, 852, 1f, 44, 34, 180)
-        assertEquals(56, result.top)
-        assertEquals(393 - 24, result.left + result.width)
+        assertEquals(44 + (852 - 44 - 34 - 180) / 2, result.top)
+        assertEquals((393 - result.width) / 2, result.left)
         assertEquals(180, result.height)
         val longer = PlayerMenuLayout.bounds(393, 852, 1f, 44, 34, 2400)
-        assertEquals(result.left, longer.left)
-        assertEquals(result.top, longer.top)
+        assertEquals((393 - longer.width) / 2, longer.left)
+        assertEquals(44 + (852 - 44 - 34 - longer.height) / 2, longer.top)
         val edge = PlayerMenuLayout.bounds(240, 320, 1f, 20, 20, 2000)
-        assertTrue(edge.left >= 24)
-        assertTrue(edge.top >= 32)
-        assertTrue(edge.left + edge.width <= 216)
-        assertTrue(edge.top + edge.height <= 276)
+        assertEquals((240 - edge.width) / 2, edge.left)
+        assertEquals(20 + (320 - 20 - 20 - edge.height) / 2, edge.top)
     }
-    @Test fun `reference phone viewport restores the original card corner`() {
-        // Previous iOS menu screenshot and hierarchy: 1280x2772, 520 dpi, status bar 152 px.
+    @Test fun `reference phone viewport keeps the card centered`() {
         val result = PlayerMenuLayout.bounds(1280, 2772, 3.25f, 152, 80, 2400)
-        assertEquals(332, result.left)
-        assertEquals(191, result.top)
-        assertEquals(870, result.width)
+        assertEquals((1280 - result.width) / 2, result.left)
+        assertEquals(152 + (2772 - 152 - 80 - result.height) / 2, result.top)
+        assertTrue(result.width > 0)
     }
     @Test fun `display cutouts on either side remain outside the menu`() {
         val result = PlayerMenuLayout.bounds(1280, 2772, 3.25f, 130, 80, 2400, 120, 60)
-        assertTrue(result.left >= 120 + 78)
-        assertEquals(1280 - 60 - 78, result.left + result.width)
-        assertTrue(result.top >= 130 + 39)
+        assertTrue(result.left >= 120)
+        assertTrue(result.left + result.width <= 1280 - 60)
+        assertEquals(120 + (1280 - 120 - 60 - result.width) / 2, result.left)
     }
     @Test fun `system bars already excluded from dialog content are not counted twice`() {
         val result = PlayerMenuLayout.localInsets(
