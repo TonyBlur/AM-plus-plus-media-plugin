@@ -117,18 +117,16 @@ internal class NativePlayerMoreMenu(private val activity: Activity, private val 
                 current = current.superclass
             }
         }
-        fun kind(textView: TextView): String? {
-            val text = textView.text?.toString().orEmpty().lowercase()
-            return when {
-                text.contains("专辑") || text.contains("album") -> "OPEN_ALBUM"
-                text.contains("艺术家") || text.contains("artist") -> "OPEN_ARTIST"
-                else -> null
+        val resolved = mutableMapOf<String, TextView>()
+        for (candidate in headerCandidates) {
+            val label = candidate.text?.toString().orEmpty().lowercase()
+            when {
+                label.contains("专辑") || label.contains("album") ->
+                    resolved.putIfAbsent("OPEN_ALBUM", candidate)
+                label.contains("艺术家") || label.contains("artist") ->
+                    resolved.putIfAbsent("OPEN_ARTIST", candidate)
             }
         }
-        val resolved = headerCandidates.mapNotNull { text ->
-            val key = kind(text) ?: return@mapNotNull null
-            key to text
-        }.distinctBy { it.first }.associate { it }
         navigation = listOf("OPEN_ALBUM", "OPEN_ARTIST").mapNotNull { key ->
             val text = resolved[key]
                 ?: headerCandidates.getOrNull(if (key == "OPEN_ALBUM") 0 else 1)

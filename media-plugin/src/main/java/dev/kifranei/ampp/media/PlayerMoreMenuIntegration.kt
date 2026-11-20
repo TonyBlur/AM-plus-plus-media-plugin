@@ -33,9 +33,6 @@ internal class PlayerMoreMenuIntegration(private val build: TargetBuild, private
             ?: return TargetCapabilityInstall.Unsupported("No verified player-menu contract for ${build.displayName}")
         val create = PluginProfiles.method("more-dialog-create")
         val destroy = PluginProfiles.method("more-dialog-destroy")
-        val controller = PluginProfiles.field("more-dialog-controller")
-        val playerMethod = PluginProfiles.method("player-action-sheet-method")
-        val player = playerMethod.declaringClass
         val dialogType = PluginProfiles.type(names.getString("dialogClass"))
         val scope = PluginScope()
         val owners = IdentityHashMap<Any, Dialog>()
@@ -50,9 +47,15 @@ internal class PlayerMoreMenuIntegration(private val build: TargetBuild, private
                 override fun afterHookedMethod(param: MethodHookParam) {
                     if (param.throwable != null) return
                     val owner = param.thisObject ?: return
-                    if (!player.isInstance(controller.get(owner))) return
                     val dialog = param.result as? Dialog ?: return
-                    if (dialogType.isInstance(dialog)) owners[owner] = dialog
+                    val activity = activity(dialog.context) ?: return
+                    val listId = activity.resources.getIdentifier(names.getString("listId"), "id", build.packageName)
+                    val coordinatorId = activity.resources.getIdentifier(names.getString("coordinatorId"), "id", build.packageName)
+                    val list = dialog.findViewById<ViewGroup>(listId)
+                    val container = list?.parent as? ViewGroup
+                    val looksLikeMoreMenu = dialogType.isInstance(dialog) ||
+                        (list != null && container?.id == coordinatorId)
+                    if (looksLikeMoreMenu) owners[owner] = dialog
                 }
             }, scope))
             check(MediaRuntime.hookMethod(Dialog::class.java.getDeclaredMethod("show"), object : PluginMethodHook() {
