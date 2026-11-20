@@ -92,7 +92,10 @@ internal class PlayerDialogsIntegration(
                     dialog.create()
                     fun id(key: String) = activity.resources.getIdentifier(names.getString(key), "id", build.packageName)
                     val sleepList = if (sleep) dialog.findViewById<ViewGroup>(id("sleepListId")) else null
-                    val isSleep = sleep && (sleepOwners.containsValue(dialog) || sleepList != null)
+                    // Some action-sheet layouts share the same list ID. Only the
+                    // verified sleep Fragment owner may open the sleep timer Surface;
+                    // otherwise a More/other action sheet can inherit the switch.
+                    val isSleep = sleep && sleepOwners.containsValue(dialog)
                     val list = if (isSleep) sleepList ?: dialog.findViewById<ViewGroup>(id("sleepListId")) else null
                     if (!isSleep && !confirmation && !confirmationOwners.containsValue(dialog)) return
                     val message = if (!isSleep) dialog.findViewById<TextView>(id("confirmationMessageId"))?.text?.toString() ?: return else ""
@@ -199,6 +202,7 @@ internal class PlayerDialogsIntegration(
         private var mounted = false
         private var tree: ViewTreeObserver? = null
         private var enterAnimator: AnimatorSet? = null
+        private var exitStarted = false
         private val position = IntArray(2)
         private val preDraw = ViewTreeObserver.OnPreDrawListener { layout(); backdrop.refreshPosition(); true }
         val closed: Boolean get() = cleanup.closed
@@ -315,22 +319,7 @@ internal class PlayerDialogsIntegration(
             window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             window.setWindowAnimations(0); window.setDimAmount(.18f)
             window.setGravity(Gravity.FILL); window.setLayout(-1, -1)
-            enterAnimator?.cancel()
-            card.alpha = 0f
-            card.scaleX = .94f
-            card.scaleY = .94f
-            card.translationY = dp(18).toFloat()
-            enterAnimator = AnimatorSet().apply {
-                playTogether(
-                    ObjectAnimator.ofFloat(card, "alpha", 0f, 1f),
-                    ObjectAnimator.ofFloat(card, "scaleX", .94f, 1f),
-                    ObjectAnimator.ofFloat(card, "scaleY", .94f, 1f),
-                    ObjectAnimator.ofFloat(card, "translationY", dp(18).toFloat(), 0f),
-                )
-                duration = 280
-                interpolator = OvershootInterpolator(.85f)
-                start()
-            }
+            LiquidPopupMotion.enter(card)
         }
         private fun dp(value: Int) = (value * activity.resources.displayMetrics.density).roundToInt()
         private fun layout() {
@@ -405,7 +394,11 @@ internal class PlayerDialogsIntegration(
             }
             if (view is ViewGroup) for (index in 0 until view.childCount) styleChildren(view.getChildAt(index))
         }
-        override fun close() = cleanup.close()
+        override fun close() {
+            if (exitStarted || cleanup.closed) return
+            exitStarted = true
+            LiquidPopupMotion.exit(card) { cleanup.close() }
+        }
     }
 
     private fun activity(context: Context): Activity? {
