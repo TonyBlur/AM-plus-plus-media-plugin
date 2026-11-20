@@ -95,43 +95,9 @@ internal class NativePlayerMoreMenu(private val activity: Activity, private val 
         PluginProfiles.method("more-adapter-bind-holder").invoke(adapter, holder, 0, emptyList<Any>())
         // DataBinding clears XML binding tags. Read its verified view fields instead.
         val binding = PluginProfiles.field("more-holder-binding").get(holder)
-        val headerCandidates = mutableListOf<TextView>()
-        for ((key, field) in listOf("OPEN_ALBUM" to "more-header-album", "OPEN_ARTIST" to "more-header-artist")) {
-            runCatching {
-                val text = PluginProfiles.field(field).get(binding) as? TextView
-                text?.takeIf { it.text.isNotBlank() && it.hasOnClickListeners() }?.let(headerCandidates::add)
-            }.onFailure {
-                MediaRuntime.log("player_more_menu: header binding $field unavailable", it)
-            }
-        }
-        if (headerCandidates.size < 2) {
-            var current: Class<*>? = binding.javaClass
-            while (current != null) {
-                for (field in current.declaredFields) {
-                    val text = runCatching {
-                        field.isAccessible = true
-                        field.get(binding) as? TextView
-                    }.getOrNull()?.takeIf { it.text.isNotBlank() && it.hasOnClickListeners() } ?: continue
-                    if (headerCandidates.none { it === text }) headerCandidates.add(text)
-                }
-                current = current.superclass
-            }
-        }
-        val resolved = mutableMapOf<String, TextView>()
-        for (candidate in headerCandidates) {
-            val label = candidate.text?.toString().orEmpty().lowercase()
-            when {
-                label.contains("专辑") || label.contains("album") ->
-                    resolved.putIfAbsent("OPEN_ALBUM", candidate)
-                label.contains("艺术家") || label.contains("artist") ->
-                    resolved.putIfAbsent("OPEN_ARTIST", candidate)
-            }
-        }
-        navigation = listOf("OPEN_ALBUM", "OPEN_ARTIST").mapNotNull { key ->
-            val text = resolved[key]
-                ?: headerCandidates.getOrNull(if (key == "OPEN_ALBUM") 0 else 1)
-                    ?.takeIf { it.text.isNotBlank() && it.hasOnClickListeners() }
-                ?: return@mapNotNull null
+        navigation = listOf("OPEN_ALBUM" to "more-header-album", "OPEN_ARTIST" to "more-header-artist").mapNotNull { (key, field) ->
+            val text = (PluginProfiles.field(field).get(binding) as TextView)
+                .takeIf { it.text.isNotBlank() && it.hasOnClickListeners() } ?: return@mapNotNull null
             val label = activity.getString(activity.resources.getIdentifier(
                 if (key == "OPEN_ALBUM") "player_go_to_album" else "player_go_to_artist", "string", activity.packageName).takeIf { it != 0 }
                 ?: android.R.string.untitled)
