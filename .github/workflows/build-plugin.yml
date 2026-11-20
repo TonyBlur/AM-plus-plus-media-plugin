@@ -2,9 +2,6 @@ name: Build AM++ media plugin
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - feature/sleep-timer-last-track
 
 permissions:
   contents: read
