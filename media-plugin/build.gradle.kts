@@ -124,7 +124,7 @@ val dex = tasks.register<JavaExec>("pluginDex") {
                 val id = artifact.moduleVersion.id
                 if (id.group in forbiddenGroups || id.name.lowercase().contains("backdrop")) null
                 else classes(artifact.file)
-        }
+        }.distinctBy { it.canonicalPath }
         val references = jars("releaseCompileClasspath")
         setArgs(listOf("--release", "--min-api", "28", "--lib", androidJar.path,
             "--output", destination.path) + references.flatMap { listOf("--classpath", it.path) } + inputs.map { it.path })
