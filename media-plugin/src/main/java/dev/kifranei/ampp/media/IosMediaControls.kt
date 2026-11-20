@@ -172,14 +172,18 @@ internal class IosMediaControls(
             check(MediaRuntime.observeMethod(getView, pages, scope))
             // The cover fragment initializes Cast before any lyrics/queue pane is opened.
             // Its layout can already exist when the main fragment is discovered.
-            check(MediaRuntime.observeMethod(PluginProfiles.method("audio-output-player-initialize"), object : PluginMethodHook() {
-                override fun afterHookedMethod(param: MethodHookParam) {
-                    if (param.throwable != null) return
-                    runCatching {
-                        (param.thisObject?.let { getView.invoke(it) } as? View)?.let(::discoverLater)
-                    }.onFailure { MediaRuntime.log("player_audio_output: initial player discovery failed", it) }
-                }
-            }, scope))
+            runCatching { PluginProfiles.method("audio-output-player-initialize") }.onSuccess { initialize ->
+                check(MediaRuntime.observeMethod(initialize, object : PluginMethodHook() {
+                    override fun afterHookedMethod(param: MethodHookParam) {
+                        if (param.throwable != null) return
+                        runCatching {
+                            (param.thisObject?.let { getView.invoke(it) } as? View)?.let(::discoverLater)
+                        }.onFailure { MediaRuntime.log("player_audio_output: initial player discovery failed", it) }
+                    }
+                }, scope))
+            }.onFailure {
+                MediaRuntime.log("player_audio_output: optional initialize contract unavailable; resume/create hooks remain active", it)
+            }
             check(MediaRuntime.observeMethod(PluginProfiles.method("player-controller-resume"), object : PluginMethodHook() {
                 override fun afterHookedMethod(param: MethodHookParam) {
                     if (param.throwable != null) return

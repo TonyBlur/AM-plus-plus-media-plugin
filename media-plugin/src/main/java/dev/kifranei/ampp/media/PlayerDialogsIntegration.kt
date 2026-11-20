@@ -56,11 +56,15 @@ internal class PlayerDialogsIntegration(
             try { dialog.show() } finally { bypass.remove() }
         }
         try {
-            if (confirmation) check(MediaRuntime.observeMethod(PluginProfiles.method("confirmation-dialog-create"), object : PluginMethodHook() {
-                override fun afterHookedMethod(param: MethodHookParam) {
-                    if (param.throwable == null) (param.result as? Dialog)?.let { confirmationOwners[checkNotNull(param.thisObject)] = it }
-                }
-            }, scope))
+            if (confirmation) runCatching { PluginProfiles.method("confirmation-dialog-create") }.onSuccess { confirmationCreate ->
+                check(MediaRuntime.observeMethod(confirmationCreate, object : PluginMethodHook() {
+                    override fun afterHookedMethod(param: MethodHookParam) {
+                        if (param.throwable == null) (param.result as? Dialog)?.let { confirmationOwners[checkNotNull(param.thisObject)] = it }
+                    }
+                }, scope))
+            }.onFailure {
+                MediaRuntime.log("player_dialog_glass: optional confirmation contract unavailable", it)
+            }
             if (sleep) {
                 check(MediaRuntime.observeMethod(PluginProfiles.method("more-dialog-create"), object : PluginMethodHook() {
                     override fun afterHookedMethod(param: MethodHookParam) {
