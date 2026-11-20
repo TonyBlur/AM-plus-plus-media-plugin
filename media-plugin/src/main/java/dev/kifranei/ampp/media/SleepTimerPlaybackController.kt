@@ -64,6 +64,8 @@ internal class SleepTimerPlaybackController(
     @Volatile private var deadlineMs = 0L
     @Volatile private var waitingForTrackEnd = false
     @Volatile private var exoPlayer: Any? = null
+    @Volatile private var queueSize = -1
+    @Volatile private var currentIndex = -1
 
     fun install() {
         val loader = MediaRuntime.context.hostClassLoader
@@ -98,7 +100,7 @@ internal class SleepTimerPlaybackController(
                 }, scope)
             }
             for (name in listOf("pause", "stop")) {
-                exoClass.declaredMethods.filter { it.name == name && it.parameterTypes.isEmpty() }.forEach { method ->
+                exoClass.declaredMethods.filter { it.name == name }.forEach { method ->
                     MediaRuntime.hookMethod(method, object : PluginMethodHook() {
                         override fun beforeHookedMethod(param: MethodHookParam) {
                             if (shouldSuppressNativeStop()) param.result = null
@@ -110,6 +112,20 @@ internal class SleepTimerPlaybackController(
 
         runCatching {
             val controllerClass = loader.loadClass("com.apple.android.music.playback.controller.LocalMediaPlayerController")
+            val indexMethod = controllerClass.declaredMethods.firstOrNull {
+                it.name == "onPlaybackIndexChanged" &&
+                    it.parameterTypes.size == 3 &&
+                    it.parameterTypes[1] == Int::class.javaPrimitiveType &&
+                    it.parameterTypes[2] == Int::class.javaPrimitiveType
+            }
+            if (indexMethod != null) {
+                MediaRuntime.observeMethod(indexMethod, object : PluginMethodHook() {
+                    override fun afterHookedMethod(param: MethodHookParam) {
+                        val ints = param.args.filterIsInstance<Int>()
+                        if (ints.isNotEmpty()) currentIndex = ints.last()
+                    }
+                }, scope)
+            }
             val stateMethod = controllerClass.declaredMethods.firstOrNull {
                 it.name == "onPlaybackStateChanged" &&
                     it.parameterTypes.size == 3 &&
@@ -120,12 +136,27 @@ internal class SleepTimerPlaybackController(
                 MediaRuntime.observeMethod(stateMethod, object : PluginMethodHook() {
                     override fun afterHookedMethod(param: MethodHookParam) {
                         val state = param.args.lastOrNull() as? Int ?: return
-                        if (waitingForTrackEnd && state == 4) stopAfterTrack()
+                        if (waitingForTrackEnd && state == 4) {
+                            if (queueSize < 0 || currentIndex < 0 || currentIndex >= queueSize - 1) stopAfterTrack()
+                        }
                     }
                 }, scope)
             }
         }.onFailure {
             MediaRuntime.log("sleep_timer: playback-state callback unavailable", it)
+        }
+
+        runCatching {
+            val queueClass = loader.loadClass("com.apple.android.music.player.queuefa.NewPlayerQueueViewModel")
+            val updateQueue = queueClass.declaredMethods.firstOrNull { it.name == "updateQueue" } ?: return@runCatching
+            MediaRuntime.observeMethod(updateQueue, object : PluginMethodHook() {
+                override fun afterHookedMethod(param: MethodHookParam) {
+                    val list = param.args.firstOrNull() as? List<*> ?: return
+                    queueSize = list.size
+                }
+            }, scope)
+        }.onFailure {
+            MediaRuntime.log("sleep_timer: queue-size callback unavailable", it)
         }
         scope.activate()
     }
@@ -143,6 +174,8 @@ internal class SleepTimerPlaybackController(
         deadlineMs = System.currentTimeMillis() + durationMs
         armed.set(true)
         waitingForTrackEnd = false
+        queueSize = -1
+        currentIndex = -1
         main.postAtTime({
             if (!armed.get()) return@postAtTime
             waitingForTrackEnd = true

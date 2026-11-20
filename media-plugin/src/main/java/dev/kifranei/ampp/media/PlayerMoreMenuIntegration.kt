@@ -69,7 +69,15 @@ internal class PlayerMoreMenuIntegration(private val build: TargetBuild, private
                     if (container.id != coordinatorId) return
                     if (dialog.window == null) return
                     val owner = owners.entries.firstOrNull { it.value === dialog }?.key ?: return
-                    val surface = runCatching { Surface(activity, dialog, owner, list, container, downloads) }
+                    val triggerLocation = IntArray(2)
+                    val trigger = activity.currentFocus ?: activity.window.decorView.findFocus()
+                    if (trigger != null) trigger.getLocationOnScreen(triggerLocation)
+                    else {
+                        triggerLocation[0] = activity.window.decorView.right
+                        triggerLocation[1] = activity.window.decorView.top
+                    }
+                    val surface = runCatching { Surface(activity, dialog, owner, list, container, downloads,
+                        triggerLocation[0].toFloat(), triggerLocation[1].toFloat()) }
                         .onFailure { MediaRuntime.log("player_more_glass: preparation failed", it) }.getOrNull() ?: return
                     surfaces[dialog] = surface
                     try {
@@ -127,6 +135,8 @@ internal class PlayerMoreMenuIntegration(private val build: TargetBuild, private
         list: ViewGroup,
         private val container: ViewGroup,
         downloads: ContentDownloadsIntegration?,
+        private val triggerScreenX: Float,
+        private val triggerScreenY: Float,
     ) : AutoCloseable {
         val closed: Boolean get() = cleanup.closed
         private val main = Handler(Looper.getMainLooper())
@@ -171,7 +181,20 @@ internal class PlayerMoreMenuIntegration(private val build: TargetBuild, private
         private val position = IntArray(2)
         private val windowPosition = IntArray(2)
         private var loggedBounds: PlayerMenuBounds? = null
-        private val preDraw = ViewTreeObserver.OnPreDrawListener { layout(); true }
+        private var entered = false
+        private var exitStarted = false
+        private val preDraw = ViewTreeObserver.OnPreDrawListener {
+            layout()
+            if (!entered) {
+                entered = true
+                val cardLocation = IntArray(2)
+                card.getLocationOnScreen(cardLocation)
+                LiquidPopupMotion.enter(card,
+                    (triggerScreenX - cardLocation[0]).coerceIn(0f, card.width.toFloat().coerceAtLeast(1f)),
+                    (triggerScreenY - cardLocation[1]).coerceIn(0f, card.height.toFloat().coerceAtLeast(1f)))
+            }
+            true
+        }
         private var enterAnimator: AnimatorSet? = null
         private val update = object : Runnable {
             override fun run() {
@@ -227,22 +250,6 @@ internal class PlayerMoreMenuIntegration(private val build: TargetBuild, private
             window.setDimAmount(.12f)
             window.setLayout(-1, -1)
             window.setGravity(android.view.Gravity.FILL)
-            enterAnimator?.cancel()
-            card.alpha = 0f
-            card.scaleX = .94f
-            card.scaleY = .94f
-            card.translationY = (18f * activity.resources.displayMetrics.density)
-            enterAnimator = AnimatorSet().apply {
-                playTogether(
-                    ObjectAnimator.ofFloat(card, "alpha", 0f, 1f),
-                    ObjectAnimator.ofFloat(card, "scaleX", .94f, 1f),
-                    ObjectAnimator.ofFloat(card, "scaleY", .94f, 1f),
-                    ObjectAnimator.ofFloat(card, "translationY", 18f * activity.resources.displayMetrics.density, 0f),
-                )
-                duration = 280
-                interpolator = OvershootInterpolator(.85f)
-                start()
-            }
         }
         private fun layout() {
             if (closed || !mounted || root.width <= 0 || root.height <= 0) return
@@ -284,7 +291,17 @@ internal class PlayerMoreMenuIntegration(private val build: TargetBuild, private
             }
             backdrop.refreshPosition()
         }
-        override fun close() = cleanup.close()
+        override fun close() {
+            if (exitStarted || cleanup.closed) return
+            exitStarted = true
+            val cardLocation = IntArray(2)
+            card.getLocationOnScreen(cardLocation)
+            LiquidPopupMotion.exit(card,
+                (triggerScreenX - cardLocation[0]).coerceIn(0f, card.width.toFloat().coerceAtLeast(1f)),
+                (triggerScreenY - cardLocation[1]).coerceIn(0f, card.height.toFloat().coerceAtLeast(1f))) {
+                cleanup.close()
+            }
+        }
     }
 
     private fun activity(context: Context): Activity? {
