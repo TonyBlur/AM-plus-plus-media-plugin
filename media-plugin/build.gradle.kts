@@ -100,16 +100,19 @@ val dex = tasks.register<JavaExec>("pluginDex") {
         // Avoid retaining old secondary DEX files between incremental packages.
         destination.listFiles()?.filter { it.name.matches(Regex("classes[0-9]*\\.dex")) }?.forEach { it.delete() }
         val inputs = mutableListOf<File>()
-        fun classes(file: File): File {
+        fun classes(file: File): File? {
             if (file.extension != "aar") return file
             val output = layout.buildDirectory.file("plugin/jars/${file.nameWithoutExtension}.jar").get().asFile
             output.parentFile.mkdirs()
-            JarFile(file).use { jar -> jar.getInputStream(jar.getJarEntry("classes.jar")).use { input ->
-                output.outputStream().use(input::copyTo)
-            } }
+            JarFile(file).use { jar ->
+                val entry = jar.getJarEntry("classes.jar") ?: return null
+                jar.getInputStream(entry).use { input ->
+                    output.outputStream().use(input::copyTo)
+                }
+            }
             return output
         }
-        inputs += classes(layout.buildDirectory.file("outputs/aar/media-plugin-release.aar").get().asFile)
+        classes(layout.buildDirectory.file("outputs/aar/media-plugin-release.aar").get().asFile)?.let(inputs::add)
         fun jars(configuration: String) = configurations.getByName(configuration).incoming.artifactView {
             attributes.attribute(org.gradle.api.artifacts.type.ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE, "android-classes-jar")
         }.files.files
