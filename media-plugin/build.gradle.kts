@@ -122,7 +122,8 @@ val dex = tasks.register<JavaExec>("pluginDex") {
         inputs += configurations.getByName("releaseRuntimeClasspath").resolvedConfiguration.resolvedArtifacts
             .mapNotNull { artifact ->
                 val id = artifact.moduleVersion.id
-                if (id.group in forbiddenGroups || id.name.lowercase().contains("backdrop")) null
+                if (forbiddenGroups.any { prefix -> id.group == prefix || id.group.startsWith("$prefix.") } ||
+                    id.name.lowercase().contains("backdrop")) null
                 else classes(artifact.file)
         }.distinctBy { it.canonicalPath }
         val references = jars("releaseCompileClasspath")
