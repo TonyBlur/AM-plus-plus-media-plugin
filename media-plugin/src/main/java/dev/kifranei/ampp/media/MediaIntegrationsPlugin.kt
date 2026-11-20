@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /** SDK v1 entry; registration, resources and configuration belong to this ZIP. */
 /** Shown in diagnostics; kept in sync with media-plugin/plugin.json by PluginProfileSelectionTest. */
-internal const val PLUGIN_BUILD = "1.3.7/19"
+internal const val PLUGIN_BUILD = "1.3.8/20"
 
 class MediaIntegrationsPlugin : AmppPlugin() {
     private lateinit var runtime: PluginContext
@@ -78,6 +78,13 @@ class MediaIntegrationsPlugin : AmppPlugin() {
                 }
             } finally { MediaDiag.capability = null }
         }
+        val sleepTimerScope = PluginScope()
+        val sleepTimerController = SleepTimerPlaybackController(
+            build,
+            enabled = { store.read().sleepTimerStopAfterTrack },
+            scope = sleepTimerScope,
+        )
+        sleepTimerController.install()
         install("Player artwork recovery", true, "shared:applemusic-player-artwork-measurement") {
             PlayerArtworkRecovery(build).install()
         }
@@ -125,13 +132,6 @@ class MediaIntegrationsPlugin : AmppPlugin() {
             PlayerDialogsIntegration(build, confirmation = true, sleep = false).install()
         }
         install(text.sleepGlass, configured.playerGlass, "shared:applemusic-sleep-timer") {
-            val scope = PluginScope()
-            val controller = SleepTimerPlaybackController(
-                build,
-                enabled = { store.read().sleepTimerStopAfterTrack },
-                scope = scope,
-            )
-            controller.install()
             PlayerDialogsIntegration(
                 build,
                 confirmation = false,
@@ -139,11 +139,11 @@ class MediaIntegrationsPlugin : AmppPlugin() {
                 sleepTimerStopAfterTrack = { store.read().sleepTimerStopAfterTrack },
                 onSleepTimerStopAfterTrackChanged = { enabled ->
                     writer.execute { store.write(store.read().copy(sleepTimerStopAfterTrack = enabled)) }
-                    controller.setEnabled(enabled)
-                    if (!enabled) controller.cancel()
+                    sleepTimerController.setEnabled(enabled)
+                    if (!enabled) sleepTimerController.cancel()
                 },
-                onSleepTimerDurationSelected = controller::arm,
-                onSleepTimerCancelled = controller::cancel,
+                onSleepTimerDurationSelected = sleepTimerController::arm,
+                onSleepTimerCancelled = sleepTimerController::cancel,
             ).install()
         }
         // OPlus ROMs (ColorOS / realme UI / OxygenOS) ship a larger default DPI that breaks the volume bar.

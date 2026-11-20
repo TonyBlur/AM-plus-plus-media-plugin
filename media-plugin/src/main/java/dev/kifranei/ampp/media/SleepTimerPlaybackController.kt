@@ -2,6 +2,7 @@ package dev.kifranei.ampp.media
 
 import android.os.Handler
 import android.os.Looper
+import android.app.Dialog
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -66,6 +67,27 @@ internal class SleepTimerPlaybackController(
 
     fun install() {
         val loader = MediaRuntime.context.hostClassLoader
+        val buildProfile = PluginProfiles.find(build.packageName, build.versionName, build.versionCode)
+        val playerDialogs = buildProfile?.document?.optJSONObject("playerDialogs")
+        if (playerDialogs != null) {
+            runCatching {
+                val sleepType = PluginProfiles.type(playerDialogs.getString("sleepFragmentClass"))
+                val create = PluginProfiles.method("more-dialog-create")
+                MediaRuntime.observeMethod(create, object : PluginMethodHook() {
+                    override fun afterHookedMethod(param: MethodHookParam) {
+                        if (param.throwable != null || !sleepType.isInstance(param.thisObject)) return
+                        val dialog = param.result as? Dialog ?: return
+                        val activity = dialog.context as? android.app.Activity ?: return
+                        val listId = activity.resources.getIdentifier(
+                            playerDialogs.getString("sleepListId"), "id", build.packageName)
+                        val list = dialog.findViewById<ViewGroup>(listId) ?: return
+                        attachNativeTimerSelection(activity, list)
+                    }
+                }, scope)
+            }.onFailure {
+                MediaRuntime.log("sleep_timer: native dialog selection hook unavailable", it)
+            }
+        }
         val exoClass = runCatching { loader.loadClass("com.apple.android.music.playback.player.ExoMediaPlayer") }.getOrNull()
         if (exoClass != null) {
             exoClass.declaredConstructors.forEach { constructor ->
@@ -137,6 +159,21 @@ internal class SleepTimerPlaybackController(
     fun setEnabled(enabled: Boolean) {
         runtimeEnabled.set(enabled)
         if (!enabled) cancel()
+    }
+
+    private fun attachNativeTimerSelection(activity: android.app.Activity, list: ViewGroup) {
+        main.post {
+            list.setOnTouchListener { _, event ->
+                if (event.actionMasked == MotionEvent.ACTION_UP) {
+                    val row = SleepTimerDurationParser.rowAt(list, event.rawX, event.rawY)
+                    val duration = row?.let(SleepTimerDurationParser::textOf)?.let(SleepTimerDurationParser::parse)
+                    if (duration != null) {
+                        if (duration == 0L) cancel() else arm(duration)
+                    }
+                }
+                false
+            }
+        }
     }
 
     private fun shouldSuppressNativeStop(): Boolean {
