@@ -50,7 +50,7 @@ class PlayerMenuLayoutTest {
     }
     @Test fun `reference phone viewport keeps the card centered`() {
         val result = PlayerMenuLayout.bounds(1280, 2772, 3.25f, 152, 80, 2400)
-        assertEquals(120 + (1280 - 120 - 60 - result.width) / 2, result.left)
+        assertEquals((1280 - result.width) / 2, result.left)
         assertEquals(152 + (2772 - 152 - 80 - result.height) / 2, result.top)
         assertTrue(result.width > 0)
     }
@@ -58,7 +58,7 @@ class PlayerMenuLayoutTest {
         val result = PlayerMenuLayout.bounds(1280, 2772, 3.25f, 130, 80, 2400, 120, 60)
         assertTrue(result.left >= 120)
         assertTrue(result.left + result.width <= 1280 - 60)
-        assertEquals((1280 - result.width) / 2, result.left)
+        assertEquals(120 + (1280 - 120 - 60 - result.width) / 2, result.left)
     }
     @Test fun `system bars already excluded from dialog content are not counted twice`() {
         val result = PlayerMenuLayout.localInsets(
