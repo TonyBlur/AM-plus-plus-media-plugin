@@ -8,6 +8,8 @@ import android.os.Looper
 import android.view.View
 import android.view.animation.LinearInterpolator
 import android.view.animation.OvershootInterpolator
+import androidx.dynamicanimation.animation.SpringAnimation
+import androidx.dynamicanimation.animation.SpringForce
 
 /** Shared Kyant-style liquid popup motion: spring-like scale/translation, gentle deceleration, and blur-first reveal. */
 internal object LiquidPopupMotion {
@@ -23,12 +25,24 @@ internal object LiquidPopupMotion {
         AnimatorSet().apply {
             playTogether(
                 ObjectAnimator.ofFloat(view, "alpha", 0f, 1f),
-                ObjectAnimator.ofFloat(view, "scaleX", .94f, 1f),
-                ObjectAnimator.ofFloat(view, "scaleY", .94f, 1f),
-                ObjectAnimator.ofFloat(view, "translationY", 14f * view.resources.displayMetrics.density, 0f),
             )
-            duration = 320
-            interpolator = OvershootInterpolator(.72f)
+            duration = 180
+            interpolator = LinearInterpolator()
+            start()
+        }
+        SpringAnimation(view, SpringAnimation.SCALE_X, 1f).apply {
+            spring = SpringForce(1f).setDampingRatio(.60f).setStiffness(250f)
+            minimumVisibleChange = .001f
+            start()
+        }
+        SpringAnimation(view, SpringAnimation.SCALE_Y, 1f).apply {
+            spring = SpringForce(1f).setDampingRatio(.70f).setStiffness(250f)
+            minimumVisibleChange = .001f
+            start()
+        }
+        SpringAnimation(view, SpringAnimation.TRANSLATION_Y, 0f).apply {
+            spring = SpringForce(0f).setDampingRatio(.50f).setStiffness(300f)
+            minimumVisibleChange = .5f
             start()
         }
     }
@@ -36,20 +50,30 @@ internal object LiquidPopupMotion {
     fun exit(view: View, originX: Float = view.width / 2f, originY: Float = view.height / 2f, end: () -> Unit) {
         view.pivotX = originX.coerceIn(0f, view.width.toFloat().coerceAtLeast(1f))
         view.pivotY = originY.coerceIn(0f, view.height.toFloat().coerceAtLeast(1f))
-        val scaleX = ObjectAnimator.ofFloat(view, "scaleX", view.scaleX, .94f)
-        val scaleY = ObjectAnimator.ofFloat(view, "scaleY", view.scaleY, .94f)
         val alpha = ObjectAnimator.ofFloat(view, "alpha", view.alpha, 0f)
-        val y = ObjectAnimator.ofFloat(view, "translationY", view.translationY,
-            10f * view.resources.displayMetrics.density)
-        val animator = AnimatorSet().apply {
-            playTogether(scaleX, scaleY, alpha, y)
-            duration = 220
+        alpha.apply {
+            duration = 180
             interpolator = LinearInterpolator()
             start()
         }
+        SpringAnimation(view, SpringAnimation.SCALE_X, .94f).apply {
+            spring = SpringForce(.94f).setDampingRatio(.60f).setStiffness(250f)
+            minimumVisibleChange = .001f
+            start()
+        }
+        SpringAnimation(view, SpringAnimation.SCALE_Y, .94f).apply {
+            spring = SpringForce(.94f).setDampingRatio(.70f).setStiffness(250f)
+            minimumVisibleChange = .001f
+            start()
+        }
+        SpringAnimation(view, SpringAnimation.TRANSLATION_Y, 10f * view.resources.displayMetrics.density).apply {
+            spring = SpringForce(10f * view.resources.displayMetrics.density)
+                .setDampingRatio(.50f).setStiffness(300f)
+            minimumVisibleChange = .5f
+            start()
+        }
         main.postDelayed({
-            runCatching { animator.cancel() }
             end()
-        }, 230)
+        }, 240)
     }
 }
