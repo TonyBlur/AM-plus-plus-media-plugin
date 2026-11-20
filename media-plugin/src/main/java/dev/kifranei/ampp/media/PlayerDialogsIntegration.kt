@@ -103,7 +103,7 @@ internal class PlayerDialogsIntegration(
                     }
                     val surface = runCatching { Surface(activity, dialog, list, title, message, actions,
                         if (isSleep) id("sleepTitleId") else 0,
-                        sleepTimerStopAfterTrack = if (isSleep) sleepTimerStopAfterTrack else { false },
+                        sleepTimerStopAfterTrack = if (isSleep) sleepTimerStopAfterTrack else { { false } },
                         onSleepTimerStopAfterTrackChanged = if (isSleep) onSleepTimerStopAfterTrackChanged else { _ -> Unit }) }
                         .onFailure { MediaRuntime.log("player_dialog_glass: preparation failed", it) }.getOrNull() ?: return
                     surfaces[dialog] = surface
