@@ -31,7 +31,7 @@ class PlayerMenuLayoutTest {
     @Test fun `long menu floats clear of system insets and keeps room for player controls`() {
         val result = PlayerMenuLayout.bounds(1280, 2772, 3.25f, 130, 80, 2400)
         assertEquals((1280 * .68f).toInt(), result.width)
-        assertEquals(120 + (1280 - 120 - 60 - result.width) / 2, result.left)
+        assertEquals((1280 - result.width) / 2, result.left)
         assertTrue(result.top >= 130 + 39)
         assertTrue(result.top + result.height <= 2772 - 80)
         assertTrue(result.height < 2400)
