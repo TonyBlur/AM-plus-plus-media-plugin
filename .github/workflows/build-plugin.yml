@@ -47,3 +47,17 @@ jobs:
           name: ampp-media-plugin-zip
           path: media-plugin/build/dist/*.zip
           if-no-files-found: error
+
+      - name: Publish direct plugin ZIP release
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ZIP_PATH="$(find media-plugin/build/dist -maxdepth 1 -name '*.zip' -print -quit)"
+          TAG="v1.3.7-plugin-${GITHUB_SHA::7}"
+          gh release delete "$TAG" --yes 2>/dev/null || true
+          gh release create "$TAG" "$ZIP_PATH" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "AM++ Media Plugin 1.3.7 (${GITHUB_SHA::7})" \
+            --notes "Directly importable AM++ plugin ZIP. Built from $GITHUB_SHA." \
+            --prerelease

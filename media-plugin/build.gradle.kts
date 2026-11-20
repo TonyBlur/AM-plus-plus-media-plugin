@@ -112,7 +112,14 @@ val dex = tasks.register<JavaExec>("pluginDex") {
         fun jars(configuration: String) = configurations.getByName(configuration).incoming.artifactView {
             attributes.attribute(org.gradle.api.artifacts.type.ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE, "android-classes-jar")
         }.files.files
-        inputs += jars("releaseRuntimeClasspath")
+        inputs += jars("releaseRuntimeClasspath").filter { jar ->
+            val name = jar.name.lowercase()
+            !name.contains("compose") &&
+                !name.contains("backdrop") &&
+                !name.contains("androidx.lifecycle") &&
+                !name.contains("androidx.savedstate") &&
+                !name.contains("androidx.navigationevent")
+        }
         val references = jars("releaseCompileClasspath")
         setArgs(listOf("--release", "--min-api", "28", "--lib", androidJar.path,
             "--output", destination.path) + references.flatMap { listOf("--classpath", it.path) } + inputs.map { it.path })
