@@ -23,6 +23,10 @@ import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.view.WindowInsets
 import android.view.WindowManager
+import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
+import android.view.animation.OvershootInterpolator
 import android.widget.FrameLayout
 import android.widget.TextView
 import android.widget.ImageView
@@ -84,12 +88,13 @@ internal class PlayerDialogsIntegration(
                     val dialog = param.thisObject as? Dialog ?: return
                     if (bypass.get() === dialog || dialog.isShowing) return
                     if (surfaces.containsKey(dialog)) { param.result = null; return }
-                    val isSleep = sleepOwners.containsValue(dialog)
-                    if (!isSleep && !confirmationOwners.containsValue(dialog)) return
                     val activity = activity(dialog.context)?.takeIf { it.packageName == build.packageName && !it.isFinishing && !it.isDestroyed } ?: return
                     dialog.create()
-                    val list = if (isSleep) dialog.findViewById<ViewGroup>(activity.resources.getIdentifier(names.getString("sleepListId"), "id", build.packageName)) ?: return else null
                     fun id(key: String) = activity.resources.getIdentifier(names.getString(key), "id", build.packageName)
+                    val sleepList = if (sleep) dialog.findViewById<ViewGroup>(id("sleepListId")) else null
+                    val isSleep = sleep && (sleepOwners.containsValue(dialog) || sleepList != null)
+                    val list = if (isSleep) sleepList ?: dialog.findViewById<ViewGroup>(id("sleepListId")) else null
+                    if (!isSleep && !confirmation && !confirmationOwners.containsValue(dialog)) return
                     val message = if (!isSleep) dialog.findViewById<TextView>(id("confirmationMessageId"))?.text?.toString() ?: return else ""
                     val deleteLabel = if (!isSleep) activity.getString(activity.resources.getIdentifier(names.getString("deleteLabel"), "string", build.packageName)) else ""
                     val buttons = if (!isSleep) dialog.findViewById<ViewGroup>(id("confirmationButtonsId"))?.let { container ->
@@ -193,6 +198,7 @@ internal class PlayerDialogsIntegration(
         private val backdrop = DialogWindowBackdrop(activity, glass, live = true)
         private var mounted = false
         private var tree: ViewTreeObserver? = null
+        private var enterAnimator: AnimatorSet? = null
         private val position = IntArray(2)
         private val preDraw = ViewTreeObserver.OnPreDrawListener { layout(); backdrop.refreshPosition(); true }
         val closed: Boolean get() = cleanup.closed
@@ -207,6 +213,8 @@ internal class PlayerDialogsIntegration(
                 tree?.takeIf { it.isAlive }?.removeOnPreDrawListener(preDraw); tree = null
                 sleepOptionSwitch?.setOnCheckedChangeListener(null)
                 list?.setOnTouchListener(null)
+                enterAnimator?.cancel()
+                enterAnimator = null
                 backdrop.close()
             },
             restore = {
@@ -307,6 +315,22 @@ internal class PlayerDialogsIntegration(
             window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             window.setWindowAnimations(0); window.setDimAmount(.18f)
             window.setGravity(Gravity.FILL); window.setLayout(-1, -1)
+            enterAnimator?.cancel()
+            card.alpha = 0f
+            card.scaleX = .94f
+            card.scaleY = .94f
+            card.translationY = dp(18).toFloat()
+            enterAnimator = AnimatorSet().apply {
+                playTogether(
+                    ObjectAnimator.ofFloat(card, "alpha", 0f, 1f),
+                    ObjectAnimator.ofFloat(card, "scaleX", .94f, 1f),
+                    ObjectAnimator.ofFloat(card, "scaleY", .94f, 1f),
+                    ObjectAnimator.ofFloat(card, "translationY", dp(18).toFloat(), 0f),
+                )
+                duration = 280
+                interpolator = OvershootInterpolator(.85f)
+                start()
+            }
         }
         private fun dp(value: Int) = (value * activity.resources.displayMetrics.density).roundToInt()
         private fun layout() {

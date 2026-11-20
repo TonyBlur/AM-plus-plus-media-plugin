@@ -12,6 +12,9 @@ import android.view.ViewOutlineProvider
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.widget.FrameLayout
+import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
+import android.view.animation.OvershootInterpolator
 import kotlin.math.roundToInt
 
 internal class AudioQualityGlassFeature {
@@ -87,6 +90,21 @@ internal class AudioQualityGlassFeature {
                     window.setDimAmount(.18f)
                     window.setWindowAnimations(0)
                     surface.show()
+                    frame.alpha = 0f
+                    frame.scaleX = .94f
+                    frame.scaleY = .94f
+                    frame.translationY = dp(18).toFloat()
+                    AnimatorSet().apply {
+                        playTogether(
+                            ObjectAnimator.ofFloat(frame, "alpha", 0f, 1f),
+                            ObjectAnimator.ofFloat(frame, "scaleX", .94f, 1f),
+                            ObjectAnimator.ofFloat(frame, "scaleY", .94f, 1f),
+                            ObjectAnimator.ofFloat(frame, "translationY", dp(18).toFloat(), 0f),
+                        )
+                        duration = 280
+                        interpolator = OvershootInterpolator(.85f)
+                        start()
+                    }
                     MediaRuntime.log("audio_quality_glass: first window shown with glass content")
                 }.onFailure { restore(); MediaRuntime.log("audio quality glass popup failed", it) }
             }

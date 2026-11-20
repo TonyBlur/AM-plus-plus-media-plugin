@@ -19,6 +19,9 @@ import android.view.ViewTreeObserver
 import android.view.WindowManager
 import android.view.WindowInsets
 import android.widget.FrameLayout
+import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
+import android.view.animation.OvershootInterpolator
 import java.util.IdentityHashMap
 
 /** Present the player's native commands in a floating iOS glass menu. */
@@ -169,6 +172,7 @@ internal class PlayerMoreMenuIntegration(private val build: TargetBuild, private
         private val windowPosition = IntArray(2)
         private var loggedBounds: PlayerMenuBounds? = null
         private val preDraw = ViewTreeObserver.OnPreDrawListener { layout(); true }
+        private var enterAnimator: AnimatorSet? = null
         private val update = object : Runnable {
             override fun run() {
                 if (closed || !root.isAttachedToWindow) return
@@ -191,6 +195,8 @@ internal class PlayerMoreMenuIntegration(private val build: TargetBuild, private
                 root.removeCallbacks(update)
                 root.removeOnAttachStateChangeListener(attached)
                 tree?.takeIf { it.isAlive }?.removeOnPreDrawListener(preDraw); tree = null
+                enterAnimator?.cancel()
+                enterAnimator = null
                 backdrop.close()
             },
             restore = {
@@ -221,6 +227,22 @@ internal class PlayerMoreMenuIntegration(private val build: TargetBuild, private
             window.setDimAmount(.12f)
             window.setLayout(-1, -1)
             window.setGravity(android.view.Gravity.FILL)
+            enterAnimator?.cancel()
+            card.alpha = 0f
+            card.scaleX = .94f
+            card.scaleY = .94f
+            card.translationY = (18f * activity.resources.displayMetrics.density)
+            enterAnimator = AnimatorSet().apply {
+                playTogether(
+                    ObjectAnimator.ofFloat(card, "alpha", 0f, 1f),
+                    ObjectAnimator.ofFloat(card, "scaleX", .94f, 1f),
+                    ObjectAnimator.ofFloat(card, "scaleY", .94f, 1f),
+                    ObjectAnimator.ofFloat(card, "translationY", 18f * activity.resources.displayMetrics.density, 0f),
+                )
+                duration = 280
+                interpolator = OvershootInterpolator(.85f)
+                start()
+            }
         }
         private fun layout() {
             if (closed || !mounted || root.width <= 0 || root.height <= 0) return
