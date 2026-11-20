@@ -35,6 +35,14 @@ internal object PlayerMenuLayout {
             (root.top + root.height - (window.top + window.height - insets.bottom)).coerceIn(0, root.height.coerceAtLeast(0)),
         )
 
+    fun place(centered: PlayerMenuBounds, width: Int, height: Int, safe: PlayerMenuInsets,
+        x: Int?, y: Int?): PlayerMenuBounds {
+        if (x == null || y == null) return centered
+        val left = (x - centered.width).coerceIn(safe.left, maxOf(safe.left, width - safe.right - centered.width))
+        val top = if (y < height / 2) y else y - centered.height
+        return centered.copy(left = left, top = top.coerceIn(safe.top, maxOf(safe.top, height - safe.bottom - centered.height)))
+    }
+
     /** Center the native more-menu card independent of native player animations.
      *  Its visual origin remains the trigger button through the popup motion pivot.
      */

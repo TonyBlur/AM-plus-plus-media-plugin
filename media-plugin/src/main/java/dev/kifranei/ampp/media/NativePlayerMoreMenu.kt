@@ -37,8 +37,9 @@ internal class NativePlayerMoreMenu(private val activity: Activity, private val 
     private val enabled = PluginProfiles.method("more-item-enabled")
     private val checked = PluginProfiles.method("more-item-checked")
     private val headerType = title.declaringClass
-    private var navigation: List<NativePlayerMenuEntry> = emptyList()
-    private val navigationText = mutableMapOf<String, TextView>()
+    // Read the bound views after attachment too: Android Data Binding can populate
+    // text, visibility and listeners after the adapter's bind call returns.
+    private var navigationViews: List<TextView> = emptyList()
 
     fun entries(): List<NativePlayerMenuEntry> {
         val main = commands.get(source) as List<*>
@@ -79,9 +80,28 @@ internal class NativePlayerMoreMenu(private val activity: Activity, private val 
                     integration.downloadTtml(activity, id, name)
                 })
         } ?: emptyList()
-        return result + navigation.map { entry ->
-            val text = checkNotNull(navigationText[entry.action.key])
-            entry.copy(subtitle = text.text.toString(), enabled = text.isEnabled)
+        return result + navigationViews.mapIndexedNotNull { index, text ->
+            if (text.visibility != View.VISIBLE || text.text.isNullOrBlank() || !text.hasOnClickListeners()) return@mapIndexedNotNull null
+            val idName = if (text.id == View.NO_ID) "" else runCatching {
+                activity.resources.getResourceEntryName(text.id)
+            }.getOrDefault("")
+            val key = when {
+                "artist" in idName -> "OPEN_ARTIST"
+                "album" in idName -> "OPEN_ALBUM"
+                else -> "NATIVE_HEADER_$index"
+            }
+            val labelId = when (key) {
+                "OPEN_ARTIST" -> "player_go_to_artist"
+                "OPEN_ALBUM" -> "player_go_to_album"
+                else -> null
+            }?.let { activity.resources.getIdentifier(it, "string", activity.packageName) } ?: 0
+            val nativeText = text.text.toString()
+            val label = if (labelId != 0) activity.getString(labelId) else text.contentDescription?.toString()
+                ?.takeIf { it.isNotBlank() } ?: nativeText
+            NativePlayerMenuEntry(PlayerMenuAction(key, index), label, nativeText.takeIf { it != label },
+                null, text.isEnabled, false) {
+                if (text.visibility == View.VISIBLE && text.isEnabled) text.performClick()
+            }
         } + download
     }
 
@@ -95,15 +115,9 @@ internal class NativePlayerMoreMenu(private val activity: Activity, private val 
         PluginProfiles.method("more-adapter-bind-holder").invoke(adapter, holder, 0, emptyList<Any>())
         // DataBinding clears XML binding tags. Read its verified view fields instead.
         val binding = PluginProfiles.field("more-holder-binding").get(holder)
-        navigation = listOf("OPEN_ALBUM" to "more-header-album", "OPEN_ARTIST" to "more-header-artist").mapNotNull { (key, field) ->
-            val text = (PluginProfiles.field(field).get(binding) as TextView)
-                .takeIf { it.text.isNotBlank() && it.hasOnClickListeners() } ?: return@mapNotNull null
-            val label = activity.getString(activity.resources.getIdentifier(
-                if (key == "OPEN_ALBUM") "player_go_to_album" else "player_go_to_artist", "string", activity.packageName).takeIf { it != 0 }
-                ?: android.R.string.untitled)
-            navigationText[key] = text
-            NativePlayerMenuEntry(PlayerMenuAction(key, 0), label, text.text.toString(), null, text.isEnabled, false) { text.performClick() }
-        }
+        navigationViews = listOf("more-header-album", "more-header-artist").mapNotNull {
+            PluginProfiles.field(it).get(binding) as? TextView
+        }.distinct()
     }
 }
 

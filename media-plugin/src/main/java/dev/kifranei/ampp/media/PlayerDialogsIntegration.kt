@@ -89,18 +89,13 @@ internal class PlayerDialogsIntegration(
                     if (bypass.get() === dialog || dialog.isShowing) return
                     if (surfaces.containsKey(dialog)) { param.result = null; return }
                     val activity = activity(dialog.context)?.takeIf { it.packageName == build.packageName && !it.isFinishing && !it.isDestroyed } ?: return
+                    // More sheets contain a sleep-timer command as well. Only the
+                    // sleep fragment may replace its list with the timer controls.
+                    val isSleep = sleep && sleepOwners.containsValue(dialog)
+                    if (!isSleep && !confirmation) return
                     dialog.create()
                     fun id(key: String) = activity.resources.getIdentifier(names.getString(key), "id", build.packageName)
-                    val sleepList = if (sleep) dialog.findViewById<ViewGroup>(id("sleepListId")) else null
-                    // Some action-sheet layouts share the same list ID. Only the
-                    // verified sleep Fragment owner may open the sleep timer Surface;
-                    // otherwise a More/other action sheet can inherit the switch.
-                    val sleepOwnerMatched = sleepOwners.containsValue(dialog)
-                    val sleepTextMatched = sleep && looksLikeSleepTimerDialog(dialog)
-                    val isSleep = sleep && (sleepOwnerMatched || sleepTextMatched)
-                    val list = if (isSleep) sleepList ?: dialog.findViewById<ViewGroup>(id("sleepListId")) else null
-                    MediaRuntime.log("player_dialog_glass: dialog opened owner=${dialog.javaClass.name} sleep=$isSleep sleepOwner=$sleepOwnerMatched sleepText=$sleepTextMatched confirmation=${!isSleep && confirmation}")
-                    if (!isSleep && !confirmation && !confirmationOwners.containsValue(dialog)) return
+                    val list = if (isSleep) dialog.findViewById<ViewGroup>(id("sleepListId")) ?: return else null
                     val message = if (!isSleep) dialog.findViewById<TextView>(id("confirmationMessageId"))?.text?.toString() ?: return else ""
                     val deleteLabel = if (!isSleep) activity.getString(activity.resources.getIdentifier(names.getString("deleteLabel"), "string", build.packageName)) else ""
                     val buttons = if (!isSleep) dialog.findViewById<ViewGroup>(id("confirmationButtonsId"))?.let { container ->
@@ -402,20 +397,6 @@ internal class PlayerDialogsIntegration(
             exitStarted = true
             LiquidPopupMotion.exit(card) { cleanup.close() }
         }
-    }
-
-    private fun looksLikeSleepTimerDialog(dialog: Dialog): Boolean {
-        val text = buildString {
-            fun visit(view: View) {
-                if (view is TextView) append(view.text?.toString().orEmpty()).append('\n')
-                if (view is ViewGroup) for (index in 0 until view.childCount) visit(view.getChildAt(index))
-            }
-            dialog.window?.decorView?.let(::visit)
-        }.lowercase()
-        return text.contains("sleep timer") ||
-            text.contains("睡眠定时") ||
-            Regex("\\d+\\s*(分钟|小时|min(?:ute)?s?|hrs?|hours?)").containsMatchIn(text) ||
-            text.contains("关闭") && text.contains("定时")
     }
 
     private fun activity(context: Context): Activity? {
