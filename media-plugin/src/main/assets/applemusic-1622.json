@@ -1309,7 +1309,7 @@
       ],
       "Lcom/apple/android/music/player/fragment/PlayerLyricsViewFragment;": [
         "w2(Lcom/apple/android/music/ttml/javanative/model/SongInfo$SongInfoPtr;)V",
-        "b2(Lz3/y;Lcom/apple/android/music/model/BaseContentItem;Lcom/apple/android/music/player/fragment/e$c;)V",
+        "b2(Lz3/y;Lcom/apple/android/music/model/BaseContentItem;Lcom/apple/android/music/player/fragment/d$c;)V",
         "W1()Z",
         "onCreateView(Landroid/view/LayoutInflater;Landroid/view/ViewGroup;Landroid/os/Bundle;)Landroid/view/View;",
         "onResume()V",
@@ -1317,7 +1317,7 @@
         "D1()V",
         "S1()Landroid/view/View;"
       ],
-      "Lcom/apple/android/music/player/P;": [
+      "Lcom/apple/android/music/player/M;": [
         "b(Lz3/y;)Lcom/apple/android/music/model/PlaybackItem;",
         "a(Lz3/y;)Lcom/apple/android/music/model/BaseContentItem;"
       ],
@@ -1325,28 +1325,34 @@
         "D(Lz3/y;)V",
         "onMediaMetadataChanged(Lz3/y;)V"
       ],
-      "Lcom/apple/android/music/player/A;": [
-        "W(Lcom/apple/android/music/player/A$a;IIIZ)V",
+      "Lcom/apple/android/music/player/x;": [
+        "W(Lcom/apple/android/music/player/x$a;IIIZ)V",
         "l(Landroidx/recyclerview/widget/RecyclerView$D;I)V",
         "n(Landroid/view/ViewGroup;I)Landroidx/recyclerview/widget/RecyclerView$D;",
         "o0(Landroid/content/res/Resources;I)F"
       ],
-      "Lcom/apple/android/music/utils/Q0$a;": [
+      "Lcom/apple/android/music/utils/R0$a;": [
         "a(Ljava/lang/CharSequence;Ljava/util/Set;)Z"
       ],
-      "Lcom/apple/android/music/player/f1;": [
+      "Lcom/apple/android/music/player/c1;": [
         "i(Lcom/apple/android/music/model/PlaybackItem;)Z"
       ],
-      "Lcom/apple/android/music/player/g1;": [
+      "Lcom/apple/android/music/player/d1;": [
         "e(Lcom/apple/android/music/model/Song;F[Lcom/apple/android/music/mediaapi/models/internals/EditorialVideo$Flavor;)Ljava/lang/String;"
       ],
-      "Lcom/apple/android/music/player/fragment/e;": [
+      "Lcom/apple/android/music/player/fragment/d;": [
         "N1(I[I)V"
       ],
       "Lcom/apple/android/music/ttml/javanative/model/SongInfo$SongInfoNative;": [
         "getAdamId()J",
         "setAdamId(J)V",
-        "getSections()Lcom/apple/android/music/ttml/javanative/model/LyricsSectionVector;"
+        "getSections()Lcom/apple/android/music/ttml/javanative/model/LyricsSectionVector;",
+        "getDuration()I",
+        "getAgents()Lcom/apple/android/music/ttml/javanative/model/LyricsAgentVector;",
+        "getAgent(Ljava/lang/String;)Lcom/apple/android/music/ttml/javanative/model/LyricsAgent$LyricsAgentPtr;",
+        "setTranslation(Ljava/lang/String;)Z",
+        "getPronunciationLanguages()Lcom/apple/android/mediaservices/javanative/common/StringVector$StringVectorNative;",
+        "setPronunciation(Ljava/lang/String;)Z"
       ],
       "Lcom/apple/android/music/player/fragment/PlayerMainFragment;": [
         "j1(Lcom/apple/android/music/storeapi/model/BagConfig;)V",
@@ -1355,18 +1361,18 @@
         "onResume()V",
         "onPause()V",
         "onDestroyView()V",
-        "m1()Landroidx/fragment/app/o;",
+        "m1()Landroidx/fragment/app/n;",
         "f1(Lcom/apple/android/music/player/fragment/PlayerMainFragment;)Landroid/view/View;"
       ],
-      "Lcom/apple/android/music/player/A$f;": [
+      "Lcom/apple/android/music/player/x$f;": [
         "onAnimationUpdate(Landroid/animation/ValueAnimator;)V"
       ],
-      "Lcom/apple/android/music/player/A$g;": [
+      "Lcom/apple/android/music/player/x$g;": [
         "onAnimationEnd(Landroid/animation/Animator;)V"
       ],
       "Lcom/apple/android/music/settings2/model/SettingsViewModel;": [
-        "getDataCategory(Loi/a;)Lcom/apple/android/music/settings2/model/b$a;",
-        "getPreferenceItems(ZLoi/a;Loi/a;Loi/a;Loi/a;Loi/a;Loi/a;Loi/a;Loi/l;Loi/q;Loi/l;Loi/a;Loi/l;Loi/a;Loi/a;Loi/l;Loi/l;Ljava/lang/String;ZZZLjava/lang/String;ZZZZZZ)Ljava/util/List;"
+        "getDataCategory(Lpi/a;)Lcom/apple/android/music/settings2/model/b$a;",
+        "getPreferenceItems(ZLpi/a;Lpi/a;Lpi/a;Lpi/a;Lpi/a;Lpi/a;Lpi/a;Lpi/l;Lpi/q;Lpi/l;Lpi/a;Lpi/l;Lpi/a;Lpi/a;Lpi/l;Lpi/l;Ljava/lang/String;ZZZLjava/lang/String;ZZZZZZ)Ljava/util/List;"
       ],
       "Lcom/apple/android/music/settings2/fragment/SettingsFragment;": [
         "t1()Lcom/apple/android/music/settings2/model/SettingsViewModel;",
@@ -1376,26 +1382,25 @@
         "<init>(Ljava/lang/String;Ljava/util/List;Ljava/lang/CharSequence;I)V"
       ],
       "Lcom/apple/android/music/settings2/model/b$b$b;": [
-        "<init>(Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;LSa/M;Loi/a;I)V"
+        "<init>(Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;LRa/J;Lpi/a;I)V"
       ],
       "Lcom/apple/android/music/common/fragment/MusicContentFragment;": [
-        "g1(Lcom/apple/android/music/common/y;JLoi/l;Lz0/m;I)V",
+        "g1(Lcom/apple/android/music/common/A;JLpi/l;Lz0/m;I)V",
         "s1()Lcom/apple/android/music/common/NavTabsViewModel;",
         "q1()Lcom/apple/android/music/player/fragment/PlayerMainFragment;",
         "onCreateView(Landroid/view/LayoutInflater;Landroid/view/ViewGroup;Landroid/os/Bundle;)Landroid/view/View;",
         "onDestroyView()V",
         "onViewCreated(Landroid/view/View;Landroid/os/Bundle;)V",
-        "r1()Lcom/apple/android/music/common/MainActivityViewModel;",
-        "j1(Lcom/apple/android/music/common/fragment/MusicContentFragment;Z)V"
+        "r1()Lcom/apple/android/music/common/MainActivityViewModel;"
       ],
-      "Lcom/apple/android/music/common/z;": [
-        "n()I",
+      "Lcom/apple/android/music/common/B;": [
+        "m()I",
         "g()I",
         "p()Ljava/lang/String;"
       ],
       "Lcom/apple/android/music/common/NavTabsViewModel;": [
-        "getGetBottomTabsLiveData()Landroidx/lifecycle/I;",
-        "getSelectedTab()Lcom/apple/android/music/common/z;"
+        "getGetBottomTabsLiveData()Landroidx/lifecycle/H;",
+        "getSelectedTab()Lcom/apple/android/music/common/B;"
       ],
       "Lcom/apple/android/music/player/fragment/PlayerMainFragment$i;": [
         "b(Landroid/view/View;F)V",
@@ -1412,7 +1417,7 @@
       ],
       "Lw9/Q;": [
         "q0(Ljava/util/Map;)Ljava/util/LinkedHashMap;",
-        "G(Ljava/lang/String;Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;",
+        "F(Ljava/lang/String;Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;",
         "f0(Lkotlin/coroutines/Continuation;)Ljava/lang/Object;"
       ],
       "LC9/F;": [
@@ -1423,10 +1428,10 @@
         "b(Lcom/apple/android/medialibrary/javanative/medialibrary/svmodel/SVEntityNative$SVEntitySRef;)Lcom/apple/android/music/model/Album;",
         "g(Lcom/apple/android/medialibrary/javanative/medialibrary/svmodel/SVEntityNative$SVEntitySRef;)Lcom/apple/android/music/model/BasePlaybackItem;"
       ],
-      "Lcom/apple/android/music/player/e1;": [
+      "Lcom/apple/android/music/player/b1;": [
         "G0(Lcom/apple/android/music/model/PlaybackItem;Lcom/apple/android/music/model/CollectionItemView;Ljava/lang/String;Landroid/content/Context;Landroid/view/View;)V"
       ],
-      "Landroidx/fragment/app/o;": [
+      "Landroidx/fragment/app/n;": [
         "onResume()V",
         "onPause()V",
         "performResume()V",
@@ -1435,9 +1440,7 @@
       "Lcom/apple/android/music/mediaapi/models/MediaEntity;": [
         "getTitle()Ljava/lang/String;",
         "getAttributes()Lcom/apple/android/music/mediaapi/models/internals/Attributes;",
-        "getShortName()Ljava/lang/String;",
-        "getType()Ljava/lang/String;",
-        "getViews()Ljava/util/Map;"
+        "getShortName()Ljava/lang/String;"
       ],
       "Lcom/apple/android/music/mediaapi/models/Song;": [
         "getShortName()Ljava/lang/String;",
@@ -1452,18 +1455,26 @@
         "setAlbumName(Ljava/lang/String;)V"
       ],
       "Lcom/apple/android/music/library2/LibraryMainContentEpoxyController;": [
-        "buildModels(Lcom/apple/android/music/library2/I;Ljava/util/List;Ljava/util/List;Lcom/apple/android/music/library2/a;LQ7/e;)V"
+        "buildModels(Lcom/apple/android/music/library2/K;Ljava/util/List;Ljava/util/List;Lcom/apple/android/music/library2/a;LQ7/e;)V"
       ],
       "Lcom/apple/android/music/player/fragment/PlayerSongViewFragment$PlayerListener;": [
         "onMediaMetadataChanged(Lz3/y;)V"
       ],
+      "Llg/b;": [
+        "g(Landroidx/lifecycle/H;Lz0/m;)Lz0/p0;",
+        "f(Landroidx/lifecycle/H;Ljava/lang/Object;Lz0/m;I)Lz0/p0;"
+      ],
       "Lcom/apple/android/music/search2/RecentlySearchedEpoxyController;": [
         "setData(Ljava/util/List;)V",
-        "onModelBound(Lcom/airbnb/epoxy/J;Lcom/airbnb/epoxy/w;ILcom/airbnb/epoxy/w;)V"
+        "onModelBound(Lcom/airbnb/epoxy/K;Lcom/airbnb/epoxy/w;ILcom/airbnb/epoxy/w;)V"
       ],
       "Lea/a;": [
         "x(Ljava/util/List;)V",
         "l(Landroidx/recyclerview/widget/RecyclerView$D;I)V"
+      ],
+      "Landroidx/databinding/ViewDataBinding;": [
+        "o(Landroid/view/View;)Landroidx/databinding/ViewDataBinding;",
+        "n()V"
       ],
       "Landroidx/recyclerview/widget/RecyclerView;": [
         "h(Landroidx/recyclerview/widget/RecyclerView$p;)V",
@@ -1479,21 +1490,21 @@
         "buildModels(Lcom/apple/android/music/mediaapi/models/MediaEntity;ZLjava/util/Set;)V"
       ],
       "Lcom/apple/android/music/s1;": [
-        "c(ILjava/lang/Object;)V"
+        "b(ILjava/lang/Object;)V"
       ],
       "Lcom/apple/android/music/g0;": [
-        "c(ILjava/lang/Object;)V"
+        "b(ILjava/lang/Object;)V"
       ],
       "Lcom/apple/android/music/player/queuefa/NewPlayerQueueViewModel;": [
         "updateHistory(Ljava/util/List;)V",
-        "updateQueue(Ljava/util/List;Lcom/apple/android/music/player/e1;ZZZ)V"
+        "updateQueue(Ljava/util/List;Lcom/apple/android/music/player/b1;ZZZ)V"
       ],
       "Lcom/apple/android/music/playback/controller/LocalMediaPlayerController;": [
         "onMetadataUpdated(Lcom/apple/android/music/playback/player/MediaPlayer;Lcom/apple/android/music/playback/model/PlayerQueueItem;)V",
         "onPlaybackIndexChanged(Lcom/apple/android/music/playback/player/MediaPlayer;II)V",
         "onPlaybackStateChanged(Lcom/apple/android/music/playback/player/MediaPlayer;II)V"
       ],
-      "Lz0/w0;": [
+      "Lz0/r0;": [
         "toString()Ljava/lang/String;"
       ],
       "Lcom/apple/android/music/collection/mediaapi/controller/AlbumPageController;": [
@@ -1503,43 +1514,56 @@
       "Lcom/apple/android/music/collection/mediaapi/controller/PlaylistPageController;": [
         "addTrackModel(Lcom/apple/android/music/mediaapi/models/MediaEntity;I)Lcom/airbnb/epoxy/w;"
       ],
-      "Lq8/q7;": [
+      "Lcom/apple/android/music/library3/LibraryComposeContentFragment;": [
+        "w1(Lz0/m;I)V"
+      ],
+      "Lq8/r7;": [
         "l()V"
       ],
       "Ly9/a;": [
-        "a(Lok/f;)Ljk/D;"
+        "a(Lpk/f;)Lkk/D;"
       ],
       "Lcom/apple/android/music/common/CustomImageView;": [
         "setBitmap(Landroid/graphics/Bitmap;)V"
       ],
-      "Lcom/apple/android/music/common/N;": [
+      "Lcom/apple/android/music/model/CollectionItemView;": [
+        "getTitle()Ljava/lang/String;",
+        "getContentType()I"
+      ],
+      "Lcom/apple/android/music/common/P;": [
         "w(Lcom/apple/android/music/model/extensions/DelegatingCollectionItemView;)V"
+      ],
+      "Lcom/apple/android/music/listennow/ListenNowEpoxyController;": [
+        "buildStandardSwoosh$lambda$44(Lcom/apple/android/music/listennow/ListenNowEpoxyController;Lcom/apple/android/music/mediaapi/models/Recommendation;Lcom/apple/android/music/common/V0;Lcom/apple/android/music/mediaapi/models/MediaEntity;Ljava/util/List;)Lcom/airbnb/epoxy/l;"
       ],
       "Lcom/apple/android/music/listennow/ListenNowEpoxyController$Q;": [
         "onModelBound(Lcom/airbnb/epoxy/w;Ljava/lang/Object;I)V"
       ],
-      "Lcom/airbnb/epoxy/J;": [
+      "Lcom/airbnb/epoxy/K;": [
         "t(Lcom/airbnb/epoxy/w;Lcom/airbnb/epoxy/w;Ljava/util/List;I)V"
       ],
       "Lcom/apple/android/music/mediaapi/repository/MediaApiRepositoryHolder$Companion;": [
         "getMediaApi()Lw9/a;"
       ],
+      "LSe/L;": [
+        "h()Lw9/a;"
+      ],
       "Lw9/Q$c;": [
         "invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;"
       ],
       "Ly9/k;": [
-        "<init>(Ljava/lang/String;ZLw9/b;Ljk/c;I)V"
+        "<init>(Ljava/lang/String;ZLw9/b;Lkk/c;I)V"
       ],
       "Lcom/apple/android/music/player/fragment/PlayerMainFragment$k;": [
         "onMediaMetadataChanged(Lz3/y;)V"
       ],
-      "Lz0/t1;": [
+      "Lz0/p1;": [
         "setValue(Ljava/lang/Object;)V"
       ],
       "Lcom/apple/android/music/DataBinderMapperImpl;": [
         "e(Landroidx/databinding/f;Landroid/view/View;ILjava/lang/Object;)Landroidx/databinding/ViewDataBinding;"
       ],
-      "Lq8/ma;": [
+      "Lq8/na;": [
         "a(Landroid/view/View;I)V"
       ],
       "Lcom/apple/android/medialibrary/results/a;": [
@@ -1549,14 +1573,14 @@
         "a()Lcom/apple/android/music/common/fragment/a;",
         "e()Ljava/lang/String;"
       ],
-      "Landroidx/fragment/app/G;": [
+      "Landroidx/fragment/app/F;": [
         "Q()Z",
-        "E(Ljava/lang/String;)Landroidx/fragment/app/o;"
+        "E(Ljava/lang/String;)Landroidx/fragment/app/n;"
       ],
       "Landroidx/fragment/app/a;": [
-        "<init>(Landroidx/fragment/app/G;)V",
-        "e(ILandroidx/fragment/app/o;Ljava/lang/String;)V",
-        "m(Landroidx/fragment/app/o;)Landroidx/fragment/app/a;",
+        "<init>(Landroidx/fragment/app/F;)V",
+        "e(ILandroidx/fragment/app/n;Ljava/lang/String;)V",
+        "m(Landroidx/fragment/app/n;)Landroidx/fragment/app/a;",
         "f(Ljava/lang/Runnable;)V",
         "h(Z)I"
       ],
@@ -1579,14 +1603,15 @@
       "Lcom/apple/android/music/common/MainActivityViewModel;": [
         "getLibraryTabName()Landroidx/lifecycle/MutableLiveData;"
       ],
-      "Lcom/apple/android/music/player/E0;": [
+      "Lcom/apple/android/music/common/fragment/f;": [
+        "a(Landroid/view/MenuItem;)V"
+      ],
+      "Lcom/apple/android/music/player/C0;": [
         "P(Landroid/view/View;IZ)V"
       ],
       "Lcom/google/android/material/bottomsheet/BottomSheetBehavior;": [
         "F()I",
-        "L(IZ)V",
-        "P(Landroid/view/View;IZ)V",
-        "y()V"
+        "L(IZ)V"
       ],
       "Lcom/apple/android/music/playback/player/MediaPlayer;": [
         "getCurrentItem()Lcom/apple/android/music/playback/model/PlayerQueueItem;"
@@ -1603,61 +1628,169 @@
         "getPersistentId()J",
         "getArtistName()Ljava/lang/String;"
       ],
-      "Lcom/apple/android/music/common/fragment/k;": [
-        "a(Landroid/view/MenuItem;)V"
+      "Lcom/apple/android/music/player/mediarouter/cast/CustomMediaRouteButton;": [
+        "showDialog()Z"
       ],
-      "LA/b;": [
-        "j()Z"
+      "Lcom/apple/android/music/playback/util/LocaleUtil;": [
+        "matchToSystemLyricsScript(Lcom/apple/android/mediaservices/javanative/common/StringVector$StringVectorNative;)Ljava/lang/String;"
       ],
-      "Lcom/apple/android/music/profiles2/GenericProfileViewModel;": [
-        "setUiState(Lcom/apple/android/music/profiles2/d;)V",
-        "createProfileHeaderData(Lcom/apple/android/music/mediaapi/models/MediaEntity;)Lcom/apple/android/music/profiles/Z;",
-        "extractShelves(Lcom/apple/android/music/mediaapi/models/MediaEntity;)Ljava/util/List;"
+      "Landroidx/lifecycle/H;": [
+        "observeForever(Landroidx/lifecycle/K;)V",
+        "removeObserver(Landroidx/lifecycle/K;)V",
+        "getValue()Ljava/lang/Object;"
       ],
-      "Lcom/apple/android/music/profiles2/d$d;": [
-        "<init>(Ljava/lang/String;Ljava/lang/String;Lcom/apple/android/music/profiles/Z;Ljava/util/List;Lcom/apple/android/music/mediaapi/models/MediaEntity;J)V"
+      "Landroidx/lifecycle/K;": [
+        "onChanged(Ljava/lang/Object;)V"
       ],
-      "Lcom/apple/android/music/mediaapi/models/internals/Relationship;": [
-        "getEntities()[Lcom/apple/android/music/mediaapi/models/MediaEntity;"
+      "Landroidx/mediarouter/app/c;": [
+        "setRemoteIndicatorDrawableInternal(Landroid/graphics/drawable/Drawable;)V",
+        "onAttachedToWindow()V",
+        "performClick()Z",
+        "updateContentDescription()V"
       ],
-      "Lcom/apple/android/music/library3/librarypin/j;": [
-        "l(Landroidx/lifecycle/I;Ljava/lang/Object;Lz0/m;I)Lz0/t0;",
-        "m(Landroidx/lifecycle/I;Lz0/m;)Lz0/t0;"
+      "Lcom/apple/android/music/player/viewmodel/PlayerLyricsViewModel;": [
+        "<init>(Landroid/app/Application;)V",
+        "buildTimeRangeToLyricsMap(Lcom/apple/android/music/ttml/javanative/model/SongInfo$SongInfoPtr;)V",
+        "loadLyrics(Lcom/apple/android/music/model/PlaybackItem;)V",
+        "getCurrentSystemLyricsLanguage()Ljava/lang/String;",
+        "getTranslationSelectedLiveResult()Landroidx/lifecycle/H;",
+        "getPronunciationSelectedLiveResult()Landroidx/lifecycle/H;"
       ],
-      "Lcom/apple/android/music/library3/LibraryComposeContentFragment;": [
-        "PageContent(Lz0/m;I)V"
+      "Lcom/apple/android/music/ttml/javanative/model/SongInfo$SongInfoPtr;": [
+        "get()Lcom/apple/android/music/ttml/javanative/model/SongInfo$SongInfoNative;"
       ],
-      "Lcom/apple/android/music/listennow/ListenNowEpoxyController;": [
-        "buildStandardSwoosh$lambda$44(Lcom/apple/android/music/listennow/ListenNowEpoxyController;Lcom/apple/android/music/mediaapi/models/Recommendation;Lcom/apple/android/music/common/S0;Lcom/apple/android/music/mediaapi/models/MediaEntity;Ljava/util/List;)Lcom/airbnb/epoxy/l;"
+      "Lcom/apple/android/music/ttml/javanative/model/LyricsSectionVector;": [
+        "size()J",
+        "get(J)Lcom/apple/android/music/ttml/javanative/model/LyricsSection$LyricsSectionPtr;"
       ],
-      "LG0/c;": [
-        "g()Lw9/a;"
+      "Lcom/apple/android/music/ttml/javanative/model/LyricsLineVector;": [
+        "size()J",
+        "get(J)Lcom/apple/android/music/ttml/javanative/model/LyricsLine$LyricsLinePtr;"
+      ],
+      "Lcom/apple/android/music/ttml/javanative/model/LyricsWordVector;": [
+        "size()J",
+        "get(J)Lcom/apple/android/music/ttml/javanative/model/LyricsWord$LyricsWordPtr;"
+      ],
+      "Lcom/apple/android/music/ttml/javanative/model/LyricsAgentVector;": [
+        "size()J",
+        "get(J)Lcom/apple/android/music/ttml/javanative/model/LyricsAgent$LyricsAgentPtr;"
+      ],
+      "Lcom/apple/android/music/ttml/javanative/model/LyricsTiming;": [
+        "getEnd()I",
+        "getAgent()Ljava/lang/String;",
+        "getBegin()I",
+        "getDuration()I"
+      ],
+      "Lcom/apple/android/music/ttml/javanative/model/LyricsSection$LyricsSectionNative;": [
+        "getLines()Lcom/apple/android/music/ttml/javanative/model/LyricsLineVector;"
+      ],
+      "Lcom/apple/android/music/ttml/javanative/model/LyricsLine$LyricsLineNative;": [
+        "getHtmlTranslationLineText()Ljava/lang/String;",
+        "getHtmlBackgroundVocalsLineText()Ljava/lang/String;",
+        "getHtmlPronunciationLineText()Ljava/lang/String;",
+        "getBackgroundWords(Z)Lcom/apple/android/music/ttml/javanative/model/LyricsWordVector;",
+        "getHtmlLineText()Ljava/lang/String;",
+        "getWords()Lcom/apple/android/music/ttml/javanative/model/LyricsWordVector;",
+        "getHtmlTranslatedBackgroundVocalsLineText()Ljava/lang/String;"
+      ],
+      "Lcom/apple/android/music/ttml/javanative/model/LyricsWord$LyricsWordNative;": [
+        "getHtmlLineText()Ljava/lang/String;"
+      ],
+      "Lcom/apple/android/music/ttml/javanative/model/LyricsAgent$LyricsAgentNative;": [
+        "getType_()J",
+        "getId()Ljava/lang/String;"
+      ],
+      "Landroidx/appcompat/app/d;": [
+        "onCreate(Landroid/os/Bundle;)V"
+      ],
+      "Lcom/apple/android/music/common/actionsheet/lyrics/ShareLyricsActionSheetFragment;": [
+        "onCreateView(Landroid/view/LayoutInflater;Landroid/view/ViewGroup;Landroid/os/Bundle;)Landroid/view/View;"
+      ],
+      "Lcom/apple/android/music/common/actionsheet/U;": [
+        "<init>(Landroid/content/Context;Ljava/lang/String;Ljava/util/HashSet;)V"
+      ],
+      "Lcom/apple/android/music/common/actionsheet/U$a;": [
+        "<init>(JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V",
+        "getId()Ljava/lang/String;",
+        "getIconDrawable()Landroid/graphics/drawable/Drawable;"
+      ],
+      "Lcom/apple/android/music/common/actionsheet/ShareSheetViewModel;": [
+        "setShareItemDetails(Lcom/apple/android/music/model/CollectionItemView;Lcom/apple/android/music/model/CollectionItemView;[Ljava/lang/String;Ljava/lang/String;)V"
+      ],
+      "La7/d;": [
+        "onChanged(Ljava/lang/Object;)V"
+      ],
+      "Lcom/apple/android/mediaservices/utils/b;": [
+        "a()Ljava/lang/Object;"
+      ],
+      "Landroidx/fragment/app/DialogFragment;": [
+        "dismissAllowingStateLoss()V"
+      ],
+      "Landroidx/core/content/FileProvider;": [
+        "d(Landroid/content/Context;Ljava/io/File;Ljava/lang/String;)Landroid/net/Uri;"
+      ],
+      "Lcom/apple/android/music/common/actionsheet/b0;": [
+        "onCreateView(Landroid/view/LayoutInflater;Landroid/view/ViewGroup;Landroid/os/Bundle;)Landroid/view/View;"
+      ],
+      "Lia/a$c;": [
+        "getMediaBrowser()LJ4/w;"
+      ],
+      "LJ4/B;": [
+        "getShuffleModeEnabled()Z",
+        "setShuffleModeEnabled(Z)V",
+        "getRepeatMode()I",
+        "setRepeatMode(I)V",
+        "h(I)Z",
+        "getApplicationLooper()Landroid/os/Looper;",
+        "Y(Lz3/F$c;)V",
+        "m(Lz3/F$c;)V"
+      ],
+      "LJ4/B$b;": [
+        "k()Z"
+      ],
+      "Lia/a;": [
+        "a(Lia/a$a;)V",
+        "f(Lia/a$a;)V",
+        "k(LJ4/B;)V"
+      ],
+      "Lz3/F$c;": [
+        "onEvents(Lz3/F;Lz3/F$b;)V",
+        "onRepeatModeChanged(I)V",
+        "onShuffleModeEnabledChanged(Z)V",
+        "onAvailableCommandsChanged(Lz3/F$a;)V",
+        "onMediaMetadataChanged(Lz3/y;)V",
+        "onTimelineChanged(Lz3/M;I)V",
+        "onPlayerError(Lz3/D;)V"
+      ],
+      "Lia/a$a;": [
+        "onBrowserConnected(LJ4/w;)V",
+        "onConnectionFailed()V"
       ]
     },
     "fields": {
-      "Lcom/apple/android/music/player/fragment/e;": [
-        "c0"
+      "Lcom/apple/android/music/player/fragment/d;": [
+        "a0"
       ],
-      "Lq8/G9;": [
-        "Y"
+      "Lq8/H9;": [
+        "X"
       ],
-      "Lq8/E9;": [
-        "Y"
+      "Lq8/F9;": [
+        "X"
       ],
-      "Lq8/K9;": [
-        "Y"
+      "Lq8/L9;": [
+        "X"
       ],
-      "Lq8/I9;": [
-        "Y"
+      "Lq8/J9;": [
+        "X"
       ],
-      "Lcom/apple/android/music/player/fragment/m;": [
+      "Lcom/apple/android/music/player/fragment/l;": [
         "c"
       ],
       "Lcom/apple/android/music/player/fragment/PlayerMainFragment;": [
         "a",
         "c",
         "d",
-        "d0",
+        "a0",
         "j",
         "k"
       ],
@@ -1665,7 +1798,7 @@
         "h",
         "f"
       ],
-      "Lcom/apple/android/music/common/y;": [
+      "Lcom/apple/android/music/common/A;": [
         "a"
       ],
       "Lcom/apple/android/music/settings2/model/b$a;": [
@@ -1688,11 +1821,23 @@
       "res/layout-w675dp-v13/mini_player.xml",
       "res/layout-w735dp-v13/mini_player.xml",
       "res/layout-w830dp-v13/mini_player.xml",
-      "res/layout-w600dp-v13/music_player.xml"
+      "res/layout/constraint_player_media_controls.xml",
+      "res/layout/fragment_player_lyrics_sheet.xml",
+      "res/layout/fragment_player_queue_sheet.xml",
+      "res/layout/new_fragment_player_queue_view.xml",
+      "res/layout/dialog_quality_disclosure.xml",
+      "res/layout/fragment_share_lyrics_action_sheet.xml",
+      "res/layout/fragment_share_action_sheet.xml",
+      "res/layout/action_sheet.xml",
+      "res/layout/action_sheet_header.xml",
+      "res/layout/sleep_timer_dialog_fragment.xml",
+      "res/layout/list_item_actionsheet.xml",
+      "res/layout/list_item_actionsheet_title.xml",
+      "res/layout/default_dialog_fragment.xml"
     ],
     "catalog_query": {
       "owner": "Lw9/Q;",
-      "verified": "G",
+      "verified": "F",
       "preferred": "B"
     },
     "fieldTypes": {
@@ -1700,7 +1845,7 @@
         "a": "Lcom/apple/android/music/player/fragment/PlayerMainFragment$l;",
         "d": "Lq8/Z4;",
         "c": "Lcom/google/android/material/bottomsheet/BottomSheetBehavior;",
-        "b0": "Lcom/apple/android/music/player/fragment/PlayerMainFragment$i;",
+        "a0": "Lcom/apple/android/music/player/fragment/PlayerMainFragment$i;",
         "j": "Z",
         "k": "Z"
       },
@@ -1712,10 +1857,10 @@
         "c": "F"
       },
       "Lcom/apple/android/music/player/fragment/PlayerLyricsViewFragment;": {
-        "m0": "Lq8/X4;",
+        "l0": "Lq8/X4;",
         "D0": "Lcom/apple/android/music/player/fragment/PlayerLyricsViewFragment$x;",
-        "E0": "Lcom/apple/android/music/player/fragment/PlayerLyricsViewFragment$x;",
-        "q0": "Lcom/apple/android/music/player/A;"
+        "p0": "Lcom/apple/android/music/player/x;",
+        "f1": "Lcom/apple/android/music/ttml/javanative/model/SongInfo$SongInfoPtr;"
       },
       "Lcom/apple/android/music/player/fragment/PlayerLyricsViewFragment$x;": {
         "a": "I",
@@ -1723,71 +1868,69 @@
         "c": "I"
       },
       "Lq8/X4;": {
-        "Y": "Landroidx/constraintlayout/widget/ConstraintLayout;",
-        "Z": "Landroid/widget/FrameLayout;",
-        "e0": "Landroidx/recyclerview/widget/RecyclerView;",
-        "k0": "Lcom/apple/android/music/common/views/AlphaGradientFrameLayout;",
-        "j0": "Lq8/t2;"
+        "X": "Landroidx/constraintlayout/widget/ConstraintLayout;",
+        "d0": "Landroidx/recyclerview/widget/RecyclerView;",
+        "j0": "Lcom/apple/android/music/common/views/AlphaGradientFrameLayout;",
+        "i0": "Lq8/t2;"
       },
       "Landroidx/recyclerview/widget/RecyclerView;": {
-        "j0": "Ljava/util/ArrayList;"
+        "i0": "Ljava/util/ArrayList;"
       },
       "Landroidx/databinding/ViewDataBinding;": {
         "d": "Landroid/view/View;"
       },
-      "Lcom/apple/android/music/player/fragment/m;": {
-        "a": "Lcom/apple/android/music/player/e1;",
-        "V": "Z"
+      "Lcom/apple/android/music/player/fragment/l;": {
+        "a": "Lcom/apple/android/music/player/b1;",
+        "U": "Z"
       },
-      "Lcom/apple/android/music/player/e1;": {
-        "U": "Lcom/google/android/material/bottomsheet/BottomSheetBehavior;"
+      "Lcom/apple/android/music/player/b1;": {
+        "T": "Lcom/google/android/material/bottomsheet/BottomSheetBehavior;"
       },
       "Lcom/google/android/material/bottomsheet/BottomSheetBehavior;": {
-        "o0": "I",
-        "j0": "I",
+        "n0": "I",
+        "i0": "I",
         "e": "I",
         "f": "Z"
       },
       "Lcom/apple/android/music/common/views/AlphaGradientFrameLayout;": {
-        "V": "Z",
         "W": "Z",
         "a0": "Z",
-        "b0": "Z",
         "c0": "I",
         "d0": "I",
         "e0": "I",
-        "f0": "I",
-        "o0": "I",
+        "n0": "I",
         "a": "[I",
         "b": "[I",
         "e": "[F",
         "f": "[F"
       },
       "Lq8/Z4;": {
-        "g0": "Landroid/widget/FrameLayout;"
+        "f0": "Landroid/widget/FrameLayout;"
       },
       "Lcom/apple/android/music/common/fragment/MusicContentFragment;": {
-        "M": "Lcom/apple/android/music/common/fragment/k;"
+        "M": "Lcom/apple/android/music/common/fragment/f;"
       },
-      "Lcom/apple/android/music/player/A;": {
+      "Lcom/apple/android/music/player/x;": {
         "S": "I"
       },
-      "Lcom/apple/android/music/player/i1$b;": {
+      "Lcom/apple/android/music/player/g1$b;": {
         "u": "Landroidx/databinding/ViewDataBinding;"
       },
       "Landroidx/recyclerview/widget/RecyclerView$D;": {
         "a": "Landroid/view/View;"
       },
-      "Lq8/o9;": {
-        "Z": "Lcom/apple/android/music/common/views/FullWidthAlphaGradientFlexboxLayout;"
+      "Lq8/p9;": {
+        "Y": "Lcom/apple/android/music/common/views/FullWidthAlphaGradientFlexboxLayout;"
       },
-      "Lcom/apple/android/music/profiles2/d$d;": {
-        "a": "Ljava/lang/String;",
-        "b": "Ljava/lang/String;",
-        "c": "Lcom/apple/android/music/profiles/Z;",
-        "d": "Ljava/util/List;",
-        "e": "Lcom/apple/android/music/mediaapi/models/MediaEntity;",
-        "f": "J"
+      "Lcom/apple/android/music/common/actionsheet/U;": {
+        "a": "Ljava/util/ArrayList;"
+      },
+      "Lcom/apple/android/music/common/actionsheet/Q;": {
+        "c": "Lcom/apple/android/music/model/CollectionItemView;",
+        "d": "Lcom/apple/android/music/model/CollectionItemView;"
+      },
+      "La7/d;": {
+        "b": "Ljava/lang/Object;"
       }
     }
   },
@@ -1886,5 +2029,6 @@
     "semanticsLayoutKey": "GetTextLayoutResult",
     "composeAlbumFragmentClass": "com.apple.android.music.collection2.fragment.AlbumPageFragment",
     "composeAlbumModelClass": "com.apple.android.music.collection2.viewmodel.AlbumViewModel"
-  }
+  },
+  "hookProfileId": "am-7.0.1-1622-candidate"
 }
