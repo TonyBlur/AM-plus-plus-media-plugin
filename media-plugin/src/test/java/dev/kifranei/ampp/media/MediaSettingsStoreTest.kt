@@ -104,4 +104,13 @@ class MediaSettingsStoreTest {
         assertTrue(store.read().sleepTimerStopAfterTrack)
         assertTrue(store.read().encode().contains("sleep_timer_stop_after_track"))
     }
+    @Test fun `sleep timer duration parser handles Chinese English and off values`() {
+        assertEquals(15 * 60_000L, SleepTimerDurationParser.parse("15 分钟"))
+        assertEquals(30 * 60_000L, SleepTimerDurationParser.parse("30 minutes"))
+        assertEquals(2 * 3_600_000L, SleepTimerDurationParser.parse("2 hours"))
+        assertEquals(3 * 3_600_000L, SleepTimerDurationParser.parse("3 小时"))
+        assertEquals(0L, SleepTimerDurationParser.parse("关闭"))
+        assertEquals(0L, SleepTimerDurationParser.parse("Off"))
+        assertEquals(null, SleepTimerDurationParser.parse("End of playback"))
+    }
 }

@@ -16,6 +16,7 @@ import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewOutlineProvider
 import android.view.ViewGroup
@@ -37,6 +38,8 @@ internal class PlayerDialogsIntegration(
     private val sleep: Boolean,
     private val sleepTimerStopAfterTrack: () -> Boolean = { false },
     private val onSleepTimerStopAfterTrackChanged: (Boolean) -> Unit = {},
+    private val onSleepTimerDurationSelected: (Long) -> Unit = {},
+    private val onSleepTimerCancelled: () -> Unit = {},
 ) {
     fun install(): TargetCapabilityInstall {
         if (Build.VERSION.SDK_INT < 33) return TargetCapabilityInstall.Unsupported("完整玻璃折射需要 Android 13+")
@@ -104,7 +107,9 @@ internal class PlayerDialogsIntegration(
                     val surface = runCatching { Surface(activity, dialog, list, title, message, actions,
                         if (isSleep) id("sleepTitleId") else 0,
                         sleepTimerStopAfterTrack = if (isSleep) sleepTimerStopAfterTrack else { { false } },
-                        onSleepTimerStopAfterTrackChanged = if (isSleep) onSleepTimerStopAfterTrackChanged else { _ -> Unit }) }
+                        onSleepTimerStopAfterTrackChanged = if (isSleep) onSleepTimerStopAfterTrackChanged else { _ -> Unit },
+                        onSleepTimerDurationSelected = if (isSleep) onSleepTimerDurationSelected else { _ -> Unit },
+                        onSleepTimerCancelled = if (isSleep) onSleepTimerCancelled else { }) }
                         .onFailure { MediaRuntime.log("player_dialog_glass: preparation failed", it) }.getOrNull() ?: return
                     surfaces[dialog] = surface
                     try {
@@ -148,7 +153,9 @@ internal class PlayerDialogsIntegration(
     private class Surface(private val activity: Activity, private val dialog: Dialog, private val list: ViewGroup?,
         private val title: String, private val message: String, private val actions: List<GlassDialogAction>, private val sleepTitleId: Int,
         private val sleepTimerStopAfterTrack: () -> Boolean,
-        private val onSleepTimerStopAfterTrackChanged: (Boolean) -> Unit) : AutoCloseable {
+        private val onSleepTimerStopAfterTrackChanged: (Boolean) -> Unit,
+        private val onSleepTimerDurationSelected: (Long) -> Unit,
+        private val onSleepTimerCancelled: () -> Unit) : AutoCloseable {
         private val main = Handler(Looper.getMainLooper())
         private val window = checkNotNull(dialog.window)
         private val content = checkNotNull(window.decorView.findViewById<ViewGroup>(android.R.id.content))
@@ -195,6 +202,7 @@ internal class PlayerDialogsIntegration(
                 root.removeOnAttachStateChangeListener(attached)
                 tree?.takeIf { it.isAlive }?.removeOnPreDrawListener(preDraw); tree = null
                 sleepOptionSwitch?.setOnCheckedChangeListener(null)
+                list?.setOnTouchListener(null)
                 backdrop.close()
             },
             restore = {
@@ -232,6 +240,18 @@ internal class PlayerDialogsIntegration(
             list?.let {
                 listParent?.removeView(it)
                 it.setBackgroundColor(Color.TRANSPARENT)
+                it.setOnTouchListener { _, event ->
+                    if (event.actionMasked == MotionEvent.ACTION_UP) {
+                        val row = SleepTimerDurationParser.rowAt(it, event.rawX, event.rawY)
+                        val text = row?.let(SleepTimerDurationParser::textOf).orEmpty()
+                        val duration = SleepTimerDurationParser.parse(text)
+                        if (duration != null) {
+                            if (duration == 0L) onSleepTimerCancelled()
+                            else onSleepTimerDurationSelected(duration)
+                        }
+                    }
+                    false
+                }
                 val container = LinearLayout(activity).apply {
                     orientation = LinearLayout.VERTICAL
                     addView(it, LinearLayout.LayoutParams(-1, -2).apply {
