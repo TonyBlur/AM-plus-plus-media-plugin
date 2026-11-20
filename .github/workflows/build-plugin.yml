@@ -31,7 +31,14 @@ jobs:
           test -n "$SDKMANAGER" && test -x "$SDKMANAGER"
           export PATH="$(dirname "$SDKMANAGER"):$(dirname "$(dirname "$SDKMANAGER")")/bin:$ANDROID_HOME/platform-tools:$PATH"
           yes | "$SDKMANAGER" --licenses >/dev/null
-          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
+          "$SDKMANAGER" --list > /tmp/android-sdk-packages.txt
+          PLATFORM="$(grep -o 'platforms;android-37[^[:space:]]*' /tmp/android-sdk-packages.txt | sort -V | tail -1)"
+          if [ -z "$PLATFORM" ]; then
+            PLATFORM="platforms;android-36"
+          fi
+          echo "Selected Android platform: $PLATFORM"
+          "$SDKMANAGER" "$PLATFORM" "build-tools;36.0.0"
+          echo "ANDROID_PLATFORM=$PLATFORM" >> "$GITHUB_ENV"
           echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
 
       - name: Build plugin ZIP

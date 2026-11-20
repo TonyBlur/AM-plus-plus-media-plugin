@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "dev.kifranei.ampp.media"
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig { minSdk = 28 }
     buildFeatures { compose = true }
     compileOptions {
