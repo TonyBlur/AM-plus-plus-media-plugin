@@ -109,7 +109,7 @@ internal class PlayerDialogsIntegration(
                         sleepTimerStopAfterTrack = if (isSleep) sleepTimerStopAfterTrack else { { false } },
                         onSleepTimerStopAfterTrackChanged = if (isSleep) onSleepTimerStopAfterTrackChanged else { _ -> Unit },
                         onSleepTimerDurationSelected = if (isSleep) onSleepTimerDurationSelected else { _ -> Unit },
-                        onSleepTimerCancelled = if (isSleep) onSleepTimerCancelled else { }) }
+                        onSleepTimerCancelled = if (isSleep) onSleepTimerCancelled else { { } }) }
                         .onFailure { MediaRuntime.log("player_dialog_glass: preparation failed", it) }.getOrNull() ?: return
                     surfaces[dialog] = surface
                     try {
