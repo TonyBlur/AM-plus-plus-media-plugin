@@ -20,10 +20,9 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - uses: android-actions/setup-android@v3
-
       - name: Install Android SDK components
         run: |
+          yes | sdkmanager --licenses >/dev/null
           sdkmanager "platforms;android-37" "build-tools;37.0.0"
           echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
 
