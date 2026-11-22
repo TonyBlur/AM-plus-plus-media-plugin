@@ -100,6 +100,8 @@ internal class PlayerMoreMenuIntegration(private val build: TargetBuild, private
                 override fun afterHookedMethod(param: MethodHookParam) {
                     val dialog = param.thisObject as? Dialog ?: return
                     if (param.throwable != null || !dialog.isShowing || surfaces.containsKey(dialog) || !owners.containsValue(dialog)) return
+                    // A sleep/confirmation glass surface already owns this window.
+                    if (GlassDialogOwnership.owner(dialog) != null) return
                     val activity = activity(dialog.context) ?: return
                     if (activity.isFinishing || activity.isDestroyed) return
                     val listId = activity.resources.getIdentifier(names.getString("listId"), "id", build.packageName)
@@ -111,6 +113,7 @@ internal class PlayerMoreMenuIntegration(private val build: TargetBuild, private
                     val owner = owners.entries.firstOrNull { it.value === dialog }?.key ?: return
                     val surface = runCatching { Surface(activity, dialog, owner, list, container, downloads, anchors[dialog]) }
                         .onFailure { MediaRuntime.log("player_more_glass: preparation failed", it) }.getOrNull() ?: return
+                    GlassDialogOwnership.claim(dialog, "more")
                     surfaces[dialog] = surface
                     try {
                         surface.capture { ready ->
@@ -146,7 +149,10 @@ internal class PlayerMoreMenuIntegration(private val build: TargetBuild, private
                     }) param.result = null
                 }
                 override fun afterHookedMethod(param: MethodHookParam) {
-                    if ((param.thisObject as? Dialog)?.isShowing == false) surfaces.remove(param.thisObject)?.close()
+                    if ((param.thisObject as? Dialog)?.isShowing == false) {
+                        surfaces.remove(param.thisObject)?.close()
+                        (param.thisObject as? Dialog)?.let(GlassDialogOwnership::release)
+                    }
                 }
             }, scope))
             check(MediaRuntime.observeMethod(destroy, object : PluginMethodHook() {
@@ -159,6 +165,7 @@ internal class PlayerMoreMenuIntegration(private val build: TargetBuild, private
             scope.onClose {
                 surfaces.values.toList().forEach(Surface::close)
                 surfaces.clear(); owners.clear(); anchors.clear(); triggers.clear()
+                GlassDialogOwnership.releaseAll("more")
             }
             scope.activate()
             return TargetCapabilityInstall.Active("Player native commands in floating iOS glass menu installed")

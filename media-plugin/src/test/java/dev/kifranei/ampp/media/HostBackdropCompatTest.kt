@@ -24,6 +24,15 @@ class HostBackdropCompatTest {
 
     @Test fun oldHostMask() = assertEquals(0x17F8, HostBackdropCompat.defaultMask(14, 12))
 
+    @Test fun ampp171MaskKeepsNewDefaultsAndExplicitSurface() {
+        // 16 JVM params (receiver + 15 declared): the extra onSampleMaterial shifts onDrawSurface
+        // to JVM index 13 while its mask bit stays 12 (receiver is not counted).
+        val mask = HostBackdropCompat.defaultMask(16, 13)
+        assertEquals(0x6FF8, mask)
+        assertEquals(0, mask and (1 shl 12))
+        assertEquals(0, mask and 7)
+    }
+
     @Test fun bundledHostJarSignatureMatchesMask() {
         val owner = Class.forName("com.kyant.backdrop.DrawBackdropModifierKt")
         val m = owner.declaredMethods.first { it.name.startsWith("drawBackdrop-") && it.name.endsWith("\$default") }

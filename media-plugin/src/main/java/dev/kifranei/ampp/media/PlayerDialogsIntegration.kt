@@ -114,13 +114,19 @@ internal class PlayerDialogsIntegration(
                     val actions = buttons.sortedBy { it.text.toString() == deleteLabel }.map { button ->
                         GlassDialogAction(button.text.toString(), button.text.toString() == deleteLabel) { button.performClick() }
                     }
-                    val surface = runCatching { Surface(activity, dialog, list, title, message, actions,
+                    val surface = runCatching {
+                        GlassDialogOwnership.claim(dialog, "dialog")
+                        Surface(activity, dialog, list, title, message, actions,
                         if (isSleep) id("sleepTitleId") else 0,
                         sleepTimerStopAfterTrack = if (isSleep) sleepTimerStopAfterTrack else { { false } },
                         onSleepTimerStopAfterTrackChanged = if (isSleep) onSleepTimerStopAfterTrackChanged else { _ -> Unit },
                         onSleepTimerDurationSelected = if (isSleep) onSleepTimerDurationSelected else { _ -> Unit },
                         onSleepTimerCancelled = if (isSleep) onSleepTimerCancelled else { { } }) }
-                        .onFailure { MediaRuntime.log("player_dialog_glass: preparation failed", it) }.getOrNull() ?: return
+                        .onFailure { MediaRuntime.log("player_dialog_glass: preparation failed", it) }.getOrNull()
+                    if (surface == null) {
+                        GlassDialogOwnership.release(dialog)
+                        return
+                    }
                     surfaces[dialog] = surface
                     try {
                         surface.capture { ready ->
@@ -146,6 +152,7 @@ internal class PlayerDialogsIntegration(
             check(MediaRuntime.observeMethod(Dialog::class.java.getDeclaredMethod("dismiss"), object : PluginMethodHook() {
                 override fun afterHookedMethod(param: MethodHookParam) {
                     surfaces.remove(param.thisObject)?.close()
+                    (param.thisObject as? Dialog)?.let(GlassDialogOwnership::release)
                     confirmationOwners.entries.removeAll { it.value === param.thisObject }
                     sleepOwners.entries.removeAll { it.value === param.thisObject }
                 }
@@ -153,6 +160,7 @@ internal class PlayerDialogsIntegration(
             scope.onClose {
                 surfaces.values.toList().forEach(Surface::close)
                 surfaces.clear(); sleepOwners.clear(); confirmationOwners.clear(); bypass.remove()
+                GlassDialogOwnership.releaseAll("dialog")
             }
             scope.activate()
             return TargetCapabilityInstall.Active("Native ${if (sleep) "sleep-timer options" else "library confirmation actions"} in glass popup installed")
@@ -169,7 +177,10 @@ internal class PlayerDialogsIntegration(
         private val main = Handler(Looper.getMainLooper())
         private val window = checkNotNull(dialog.window)
         private val content = checkNotNull(window.decorView.findViewById<ViewGroup>(android.R.id.content))
-        private val children = (0 until content.childCount).map { content.getChildAt(it) to content.getChildAt(it).visibility }
+        // Native dialog content can be attached after Dialog.show() returns (DialogFragment inflates
+        // its view later), so keep hiding non-glass children until the popup closes. Hiding only the
+        // snapshot taken at construction left the native sheet visible under the glass one.
+        private val hiddenNative = IdentityHashMap<View, Int>()
         private val attributes = WindowManager.LayoutParams().apply { copyFrom(window.attributes) }
         private val background = window.decorView.background
         private val listParent = list?.parent as? ViewGroup
@@ -202,7 +213,7 @@ internal class PlayerDialogsIntegration(
         private var enterAnimator: AnimatorSet? = null
         private var exitStarted = false
         private val position = IntArray(2)
-        private val preDraw = ViewTreeObserver.OnPreDrawListener { layout(); backdrop.refreshPosition(); true }
+        private val preDraw = ViewTreeObserver.OnPreDrawListener { hideNativeContent(); layout(); backdrop.refreshPosition(); true }
         val closed: Boolean get() = cleanup.closed
         private val attached = object : View.OnAttachStateChangeListener {
             override fun onViewAttachedToWindow(view: View) { tree = root.viewTreeObserver.also { it.addOnPreDrawListener(preDraw) } }
@@ -234,7 +245,8 @@ internal class PlayerDialogsIntegration(
                         it.background = listBackground
                         listParent?.addView(it, listIndex.coerceAtMost(listParent.childCount), listParams)
                     }
-                    children.forEach { (child, visible) -> child.visibility = visible }
+                    hiddenNative.forEach { (child, visible) -> child.visibility = visible }
+                    hiddenNative.clear()
                 }
                 window.setBackgroundDrawable(background); window.attributes = attributes
             },
@@ -314,15 +326,26 @@ internal class PlayerDialogsIntegration(
                     setMargins(dp(16), dp(12), dp(16), dp(12))
                 })
             }
-            children.forEach { (child, _) -> child.visibility = View.INVISIBLE }
+            hideNativeContent()
             root.addOnAttachStateChangeListener(attached)
             content.addView(root, ViewGroup.LayoutParams(-1, -1))
+            hideNativeContent()
             window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             window.setWindowAnimations(0); window.setDimAmount(.18f)
             window.setGravity(Gravity.FILL); window.setLayout(-1, -1)
             LiquidPopupMotion.enter(card)
         }
         private fun dp(value: Int) = (value * activity.resources.displayMetrics.density).roundToInt()
+
+        /** Hide every native child except our glass root; new children may appear after show(). */
+        private fun hideNativeContent() {
+            for (index in 0 until content.childCount) {
+                val child = content.getChildAt(index)
+                if (child === root) continue
+                if (!hiddenNative.containsKey(child)) hiddenNative[child] = child.visibility
+                if (child.visibility != View.INVISIBLE) child.visibility = View.INVISIBLE
+            }
+        }
         private fun layout() {
             if (closed || root.width <= 0 || root.height <= 0) return
             root.getLocationOnScreen(position)
