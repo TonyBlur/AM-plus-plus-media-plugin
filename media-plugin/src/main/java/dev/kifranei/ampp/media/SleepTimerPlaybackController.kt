@@ -71,8 +71,8 @@ internal class SleepTimerPlaybackController(
     @Volatile private var deadlineMs = 0L
     @Volatile private var waitingForTrackEnd = false
     @Volatile private var exoPlayer: Any? = null
-    @Volatile private var queueSize = -1
-    @Volatile private var currentIndex = -1
+    @Volatile private var indexSignature: List<Int> = emptyList()
+    @Volatile private var expirySignature: List<Int> = emptyList()
 
     fun install() {
         val loader = MediaRuntime.context.hostClassLoader
@@ -123,7 +123,12 @@ internal class SleepTimerPlaybackController(
                 MediaRuntime.observeMethod(indexMethod, object : PluginMethodHook() {
                     override fun afterHookedMethod(param: MethodHookParam) {
                         val ints = param.args.filterIsInstance<Int>()
-                        if (ints.isNotEmpty()) currentIndex = ints.last()
+                        if (ints.isEmpty()) return
+                        indexSignature = ints
+                        if (waitingForTrackEnd && ints != expirySignature) {
+                            MediaRuntime.log("sleep_timer: track changed after the timer expired", null)
+                            stopAfterTrack()
+                        }
                     }
                 }, scope)
             }
@@ -136,9 +141,12 @@ internal class SleepTimerPlaybackController(
             if (stateMethod != null) {
                 MediaRuntime.observeMethod(stateMethod, object : PluginMethodHook() {
                     override fun afterHookedMethod(param: MethodHookParam) {
-                        val state = param.args.lastOrNull() as? Int ?: return
-                        if (waitingForTrackEnd && state == 4) {
-                            if (queueSize < 0 || currentIndex < 0 || currentIndex >= queueSize - 1) stopAfterTrack()
+                        // ExoPlayer STATE_ENDED (4) means the queue is over, which also
+                        // finishes the current track. Do not depend on queue-index values:
+                        // their argument order differs across Apple Music builds.
+                        if (waitingForTrackEnd && param.args.filterIsInstance<Int>().any { it == 4 }) {
+                            MediaRuntime.log("sleep_timer: playback ended after the timer expired", null)
+                            stopAfterTrack()
                         }
                     }
                 }, scope)
@@ -147,18 +155,6 @@ internal class SleepTimerPlaybackController(
             MediaRuntime.log("sleep_timer: playback-state callback unavailable", it)
         }
 
-        runCatching {
-            val queueClass = loader.loadClass("com.apple.android.music.player.queuefa.NewPlayerQueueViewModel")
-            val updateQueue = queueClass.declaredMethods.firstOrNull { it.name == "updateQueue" } ?: return@runCatching
-            MediaRuntime.observeMethod(updateQueue, object : PluginMethodHook() {
-                override fun afterHookedMethod(param: MethodHookParam) {
-                    val list = param.args.firstOrNull() as? List<*> ?: return
-                    queueSize = list.size
-                }
-            }, scope)
-        }.onFailure {
-            MediaRuntime.log("sleep_timer: queue-size callback unavailable", it)
-        }
         scope.activate()
     }
 
@@ -175,11 +171,12 @@ internal class SleepTimerPlaybackController(
         deadlineMs = SystemClock.uptimeMillis() + durationMs
         armed.set(true)
         waitingForTrackEnd = false
-        queueSize = -1
-        currentIndex = -1
+        expirySignature = indexSignature
         main.postAtTime({
             if (!armed.get()) return@postAtTime
             waitingForTrackEnd = true
+            expirySignature = indexSignature
+            MediaRuntime.log("sleep_timer: countdown elapsed; waiting for the current track to finish", null)
         }, TIMER_TOKEN, deadlineMs)
     }
 
@@ -231,13 +228,19 @@ internal class SleepTimerPlaybackController(
         waitingForTrackEnd = false
         armed.set(false)
         deadlineMs = 0L
-        val holder = exoPlayer ?: return
+        val holder = exoPlayer
+        if (holder == null) {
+            MediaRuntime.log("sleep_timer: playback finished but ExoMediaPlayer was not captured; cannot stop", null)
+            return
+        }
         runCatching {
             val stop = holder.javaClass.getDeclaredMethod("stop").apply { isAccessible = true }
             stop.invoke(holder)
+            MediaRuntime.log("sleep_timer: stopped after the current track finished", null)
         }.recoverCatching {
             val pause = holder.javaClass.getDeclaredMethod("pause").apply { isAccessible = true }
             pause.invoke(holder)
+            MediaRuntime.log("sleep_timer: paused after the current track finished (stop unavailable)", null)
         }.onFailure {
             MediaRuntime.log("sleep_timer: failed to stop after final track", it)
         }

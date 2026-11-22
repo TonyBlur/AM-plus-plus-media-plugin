@@ -36,6 +36,25 @@ internal class PlayerMoreMenuIntegration(private val build: TargetBuild, private
         val playerMethod = PluginProfiles.method("player-action-sheet-method")
         val player = playerMethod.declaringClass
         val dialogType = PluginProfiles.type(names.getString("dialogClass"))
+        // The sleep timer, delete confirmation and share panels share the action-sheet
+        // framework. PlayerDialogsIntegration/CardSharingIntegration own those dialogs; the
+        // more-menu surface must never claim them, otherwise two glass surfaces mount on the
+        // same window (overlapping popups) or the injected share actions disappear.
+        val profile = PluginProfiles.find(build.packageName, build.versionName, build.versionCode)
+        val dialogNames = profile?.document?.optJSONObject("playerDialogs")
+        val cardNames = profile?.document?.optJSONObject("cardSharing")
+        val excludedNames = buildList {
+            dialogNames?.optString("sleepFragmentClass")?.let(::add)
+            dialogNames?.optString("confirmationFragmentClass")?.let(::add)
+            cardNames?.optString("fragmentClass")?.let(::add)
+        }
+        val excludedOwners = excludedNames.filter(String::isNotBlank).mapNotNull { name ->
+            runCatching { PluginProfiles.type(name) }
+                .onFailure { MediaRuntime.log("player_more_glass: dialog fragment contract unavailable: $name", it) }
+                .getOrNull()
+        }.toMutableList()
+        // The regular song share sheet has no profile entry; resolve its fragment from the hook contract.
+        runCatching { PluginProfiles.method("song-sharing-create-view").declaringClass }.getOrNull()?.let(excludedOwners::add)
         val scope = PluginScope()
         val owners = IdentityHashMap<Any, Dialog>()
         val surfaces = IdentityHashMap<Dialog, Surface>()
@@ -65,12 +84,15 @@ internal class PlayerMoreMenuIntegration(private val build: TargetBuild, private
                 override fun afterHookedMethod(param: MethodHookParam) {
                     if (param.throwable != null) return
                     val owner = param.thisObject ?: return
-                    val playerOwner = controller.get(owner) ?: return
-                    if (!player.isInstance(playerOwner)) return
+                    if (excludedOwners.any { it.isInstance(owner) }) return
+                    val ownerController = runCatching { controller.get(owner) }.getOrNull()
                     val dialog = param.result as? Dialog ?: return
                     if (dialogType.isInstance(dialog)) {
                         owners[owner] = dialog
-                        triggers.remove(playerOwner)?.let { anchors[dialog] = it }
+                        // Player-page sheets carry a captured button anchor; other pages stay centered.
+                        if (ownerController != null && player.isInstance(ownerController)) {
+                            triggers.remove(ownerController)?.let { anchors[dialog] = it }
+                        }
                     }
                 }
             }, scope))
