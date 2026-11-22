@@ -33,6 +33,18 @@ class HostBackdropCompatTest {
         assertEquals(0, mask and 7)
     }
 
+    @Test fun surfaceIndexFollowsOldAndNewHostLayouts() {
+        val f0 = kotlin.jvm.functions.Function0::class.java
+        val f1 = kotlin.jvm.functions.Function1::class.java
+        val f2 = kotlin.jvm.functions.Function2::class.java
+        val any = Any::class.java
+        val old = arrayOf(any, any, f0, f1, f0, f0, f0, f1, any, any, f1, f2, f1, f1, Int::class.javaPrimitiveType!!, any)
+        assertEquals(12, HostBackdropCompat.surfaceIndex(old, 14))
+        val ampp171 = arrayOf(any, any, f0, f1, f0, f0, f0, f1, any, any, any, f1, f2, f1, f2, f1,
+            Int::class.javaPrimitiveType!!, any)
+        assertEquals(13, HostBackdropCompat.surfaceIndex(ampp171, 16))
+    }
+
     @Test fun bundledHostJarSignatureMatchesMask() {
         val owner = Class.forName("com.kyant.backdrop.DrawBackdropModifierKt")
         val m = owner.declaredMethods.first { it.name.startsWith("drawBackdrop-") && it.name.endsWith("\$default") }

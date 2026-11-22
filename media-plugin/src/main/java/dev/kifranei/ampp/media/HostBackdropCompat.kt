@@ -63,12 +63,16 @@ internal object HostBackdropCompat {
     }
 
     /**
-     * `onDrawSurface` is the first `Function1` after `onDrawBackdrop` (the only `Function2`), which
-     * holds for both the old layout and 1.7.x (which inserts `onSampleMaterial` after it).
+     * `onDrawSurface` is the first `Function1` after the first `Function2` (`onDrawBackdrop`).
+     * `onDrawBehind` is an earlier `Function1`, and 1.7.x adds another `Function2`
+     * (`onSampleMaterial`) after the surface, so neither "last Function1" nor "last Function2"
+     * uniquely identifies it.
      */
-    private fun surfaceIndex(method: Method, declared: Int): Int {
-        val types = method.parameterTypes
-        val backdrop = types.indexOfLast { it.name == FUNCTION_2 && it < declared }
+    private fun surfaceIndex(method: Method, declared: Int): Int = surfaceIndex(method.parameterTypes, declared)
+
+    internal fun surfaceIndex(types: Array<Class<*>>, declared: Int = types.size): Int {
+        val backdrop = (0 until declared).firstOrNull { types[it].name == FUNCTION_2 }
+            ?: return (declared - 2).coerceAtLeast(0)
         for (i in backdrop + 1 until declared) if (types[i].name == FUNCTION_1) return i
         return (declared - 2).coerceAtLeast(0)
     }
