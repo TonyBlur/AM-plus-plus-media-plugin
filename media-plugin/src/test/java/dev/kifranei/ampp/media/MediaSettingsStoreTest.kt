@@ -113,4 +113,10 @@ class MediaSettingsStoreTest {
         assertEquals(0L, SleepTimerDurationParser.parse("Off"))
         assertEquals(null, SleepTimerDurationParser.parse("End of playback"))
     }
+    @Test fun `sleep timer selection only intercepts positive durations when stop after track is on`() {
+        assertFalse(SleepTimerSelectionPolicy.interceptNativeSelection(null, stopAfterTrack = true))
+        assertFalse(SleepTimerSelectionPolicy.interceptNativeSelection(0L, stopAfterTrack = true))
+        assertFalse(SleepTimerSelectionPolicy.interceptNativeSelection(60_000L, stopAfterTrack = false))
+        assertTrue(SleepTimerSelectionPolicy.interceptNativeSelection(60_000L, stopAfterTrack = true))
+    }
 }

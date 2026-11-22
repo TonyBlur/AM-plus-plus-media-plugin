@@ -2,6 +2,7 @@ package dev.kifranei.ampp.media
 
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.app.Dialog
 import android.view.MotionEvent
 import android.view.View
@@ -53,6 +54,12 @@ internal object SleepTimerDurationParser {
     }
 }
 
+internal object SleepTimerSelectionPolicy {
+    /** Consume only a positive timer selection when the plugin replaces the native stop action. */
+    fun interceptNativeSelection(durationMs: Long?, stopAfterTrack: Boolean): Boolean =
+        stopAfterTrack && durationMs != null && durationMs > 0L
+}
+
 internal class SleepTimerPlaybackController(
     private val build: TargetBuild,
     private val enabled: () -> Boolean,
@@ -86,7 +93,7 @@ internal class SleepTimerPlaybackController(
                         val listId = activity.resources.getIdentifier(
                             playerDialogs.getString("sleepListId"), "id", build.packageName)
                         val list = dialog.findViewById<ViewGroup>(listId) ?: return
-                        attachNativeTimerSelection(activity, list)
+                        attachNativeTimerSelection(dialog, list)
                     }
                 }, scope)
             }.onFailure {
@@ -101,15 +108,6 @@ internal class SleepTimerPlaybackController(
                         if (param.throwable == null) exoPlayer = param.thisObject
                     }
                 }, scope)
-            }
-            for (name in listOf("pause", "stop")) {
-                exoClass.declaredMethods.filter { it.name == name }.forEach { method ->
-                    MediaRuntime.hookMethod(method, object : PluginMethodHook() {
-                        override fun beforeHookedMethod(param: MethodHookParam) {
-                            if (shouldSuppressNativeStop()) param.result = null
-                        }
-                    }, scope)
-                }
             }
         }
 
@@ -174,7 +172,7 @@ internal class SleepTimerPlaybackController(
             cancel()
             return
         }
-        deadlineMs = System.currentTimeMillis() + durationMs
+        deadlineMs = SystemClock.uptimeMillis() + durationMs
         armed.set(true)
         waitingForTrackEnd = false
         queueSize = -1
@@ -197,17 +195,20 @@ internal class SleepTimerPlaybackController(
         if (!enabled) cancel()
     }
 
-    private fun attachNativeTimerSelection(activity: android.app.Activity, list: ViewGroup) {
+    private fun attachNativeTimerSelection(dialog: Dialog, list: ViewGroup) {
         main.post {
             list.setOnTouchListener { _, event ->
+                var intercept = false
                 if (event.actionMasked == MotionEvent.ACTION_UP) {
                     val row = SleepTimerDurationParser.rowAt(list, event.rawX, event.rawY)
                     val duration = row?.let(SleepTimerDurationParser::textOf)?.let(SleepTimerDurationParser::parse)
                     if (duration != null) {
                         if (duration == 0L) cancel() else arm(duration)
+                        intercept = SleepTimerSelectionPolicy.interceptNativeSelection(duration, runtimeEnabled.get())
+                        if (intercept) dialog.dismiss()
                     }
                 }
-                false
+                intercept
             }
         }
     }
@@ -223,14 +224,6 @@ internal class SleepTimerPlaybackController(
         return text.contains("sleep timer") ||
             text.contains("睡眠定时") ||
             Regex("\\d+\\s*(分钟|小时|min(?:ute)?s?|hrs?|hours?)").containsMatchIn(text)
-    }
-
-    private fun shouldSuppressNativeStop(): Boolean {
-        if (!runtimeEnabled.get()) return false
-        if (waitingForTrackEnd) return true
-        if (!armed.get()) return false
-        val now = System.currentTimeMillis()
-        return now >= deadlineMs - 500L
     }
 
     private fun stopAfterTrack() {

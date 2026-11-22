@@ -86,13 +86,6 @@
     },
     "fields": {},
     "methodContracts": {
-      "player-fragment-view": {
-        "owner": "androidx.fragment.app.o",
-        "name": "getView",
-        "parameters": [],
-        "returns": "android.view.View",
-        "static": false
-      },
       "player-artwork-resize": {
         "owner": "com.apple.android.music.player.fragment.m",
         "name": "E1",

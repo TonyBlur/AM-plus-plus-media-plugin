@@ -255,6 +255,7 @@ internal class PlayerDialogsIntegration(
                 listParent?.removeView(it)
                 it.setBackgroundColor(Color.TRANSPARENT)
                 it.setOnTouchListener { _, event ->
+                    var intercept = false
                     if (event.actionMasked == MotionEvent.ACTION_UP) {
                         val row = SleepTimerDurationParser.rowAt(it, event.rawX, event.rawY)
                         val text = row?.let(SleepTimerDurationParser::textOf).orEmpty()
@@ -262,9 +263,11 @@ internal class PlayerDialogsIntegration(
                         if (duration != null) {
                             if (duration == 0L) onSleepTimerCancelled()
                             else onSleepTimerDurationSelected(duration)
+                            intercept = SleepTimerSelectionPolicy.interceptNativeSelection(duration, sleepTimerStopAfterTrack())
+                            if (intercept) dialog.dismiss()
                         }
                     }
-                    false
+                    intercept
                 }
                 val container = LinearLayout(activity).apply {
                     orientation = LinearLayout.VERTICAL
