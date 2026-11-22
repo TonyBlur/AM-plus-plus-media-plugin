@@ -122,6 +122,10 @@ class MediaIntegrationsPlugin : AmppPlugin() {
         install(text.sharing, configured.sharing, "shared:applemusic-lyric-share-image") {
             CardSharingFeature().install(CardSharingIntegration(app, loader, build))
         }
+
+        install(text.sharing, configured.sharing, "shared:applemusic-share-card") {
+            LyricsMoreShareIntegration(build, loader).install()
+        }
         install(text.qualityGlass, configured.playerGlass, "shared:applemusic-quality-disclosure") {
             AudioQualityGlassFeature().install(AudioQualityIntegration(app, build))
         }
