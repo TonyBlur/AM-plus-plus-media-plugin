@@ -10,8 +10,19 @@ import java.util.WeakHashMap
  */
 internal object GlassDialogOwnership {
     private val owners = WeakHashMap<Dialog, String>()
+    private val listeners = mutableListOf<(String) -> Unit>()
 
-    @Synchronized fun claim(dialog: Dialog, owner: String) { owners[dialog] = owner }
+    @Synchronized fun onClaim(listener: (String) -> Unit): () -> Unit {
+        listeners += listener
+        return { removeClaimListener(listener) }
+    }
+
+    @Synchronized fun removeClaimListener(listener: (String) -> Unit) { listeners.remove(listener) }
+
+    @Synchronized fun claim(dialog: Dialog, owner: String) {
+        owners[dialog] = owner
+        listeners.toList().forEach { it(owner) }
+    }
 
     @Synchronized fun owner(dialog: Dialog): String? = owners[dialog]
 

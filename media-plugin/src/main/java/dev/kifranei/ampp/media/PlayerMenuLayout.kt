@@ -4,6 +4,13 @@ internal data class PlayerMenuAction(val key: String, val index: Int)
 internal data class PlayerMenuGroups(val shortcuts: List<PlayerMenuAction?>, val sections: List<List<PlayerMenuAction>>)
 internal data class PlayerMenuBounds(val left: Int, val top: Int, val width: Int, val height: Int)
 internal data class PlayerMenuInsets(val left: Int, val top: Int, val right: Int, val bottom: Int)
+internal enum class PlayerMenuOpenDirection { UP, DOWN, CENTER }
+internal data class PlayerMenuPlacement(
+    val bounds: PlayerMenuBounds,
+    val direction: PlayerMenuOpenDirection,
+    val pivotX: Float,
+    val pivotY: Float,
+)
 
 /** Arrange only actions supplied by AM; an unavailable shortcut never invents a command. */
 internal object PlayerMenuLayout {
@@ -36,11 +43,23 @@ internal object PlayerMenuLayout {
         )
 
     fun place(centered: PlayerMenuBounds, width: Int, height: Int, safe: PlayerMenuInsets,
-        x: Int?, y: Int?): PlayerMenuBounds {
-        if (x == null || y == null) return centered
-        val left = (x - centered.width).coerceIn(safe.left, maxOf(safe.left, width - safe.right - centered.width))
+        x: Int?, y: Int?): PlayerMenuBounds = placeAnchored(centered, width, height, safe, x, y).bounds
+
+    /** Open toward free space: top half expands down, bottom half up, left half grows to the right. */
+    fun placeAnchored(centered: PlayerMenuBounds, width: Int, height: Int, safe: PlayerMenuInsets,
+        x: Int?, y: Int?): PlayerMenuPlacement {
+        if (x == null || y == null) return PlayerMenuPlacement(
+            centered, PlayerMenuOpenDirection.CENTER, centered.width / 2f, centered.height / 2f)
+        val left = if (x < width / 2) x else x - centered.width
         val top = if (y < height / 2) y else y - centered.height
-        return centered.copy(left = left, top = top.coerceIn(safe.top, maxOf(safe.top, height - safe.bottom - centered.height)))
+        val leftClamped = left.coerceIn(safe.left, maxOf(safe.left, width - safe.right - centered.width))
+        val topClamped = top.coerceIn(safe.top, maxOf(safe.top, height - safe.bottom - centered.height))
+        return PlayerMenuPlacement(
+            centered.copy(left = leftClamped, top = topClamped),
+            if (y < height / 2) PlayerMenuOpenDirection.DOWN else PlayerMenuOpenDirection.UP,
+            (x - leftClamped).coerceIn(0, centered.width).toFloat(),
+            (y - topClamped).coerceIn(0, centered.height).toFloat(),
+        )
     }
 
     /** Center the native more-menu card independent of native player animations.

@@ -60,6 +60,18 @@ internal class PlayerMoreMenuIntegration(private val build: TargetBuild, private
         val surfaces = IdentityHashMap<Dialog, Surface>()
         val triggers = WeakHashMap<Any, Rect>()
         val anchors = IdentityHashMap<Dialog, Rect>()
+        val bypass = ThreadLocal<Dialog?>()
+        val main = Handler(Looper.getMainLooper())
+        fun nativeShow(dialog: Dialog) {
+            bypass.set(dialog)
+            try { dialog.show() } finally { bypass.remove() }
+        }
+        // Opening the sleep timer from this menu must not leave the old glass menu behind.
+        GlassDialogOwnership.onClaim { owner ->
+            if (owner == "dialog") main.post {
+                surfaces.keys.toList().forEach { dialog -> runCatching { dialog.dismiss() } }
+            }
+        }.also { scope.onClose(it) }
         try {
             check(MediaRuntime.observeMethod(playerMethod, object : PluginMethodHook() {
                 override fun beforeHookedMethod(param: MethodHookParam) {
@@ -96,12 +108,14 @@ internal class PlayerMoreMenuIntegration(private val build: TargetBuild, private
                     }
                 }
             }, scope))
-            check(MediaRuntime.observeMethod(Dialog::class.java.getDeclaredMethod("show"), object : PluginMethodHook() {
-                override fun afterHookedMethod(param: MethodHookParam) {
+            check(MediaRuntime.hookMethod(Dialog::class.java.getDeclaredMethod("show"), object : PluginMethodHook() {
+                override fun beforeHookedMethod(param: MethodHookParam) {
                     val dialog = param.thisObject as? Dialog ?: return
-                    if (param.throwable != null || !dialog.isShowing || surfaces.containsKey(dialog) || !owners.containsValue(dialog)) return
+                    if (bypass.get() === dialog || dialog.isShowing) return
+                    if (surfaces.containsKey(dialog)) { param.result = null; return }
                     // A sleep/confirmation glass surface already owns this window.
                     if (GlassDialogOwnership.owner(dialog) != null) return
+                    if (!owners.containsValue(dialog)) return
                     val activity = activity(dialog.context) ?: return
                     if (activity.isFinishing || activity.isDestroyed) return
                     val listId = activity.resources.getIdentifier(names.getString("listId"), "id", build.packageName)
@@ -117,21 +131,27 @@ internal class PlayerMoreMenuIntegration(private val build: TargetBuild, private
                     surfaces[dialog] = surface
                     try {
                         surface.capture { ready ->
-                            if (surface.closed || !scope.isActive || !dialog.isShowing || !owners.containsValue(dialog) || activity.isDestroyed || activity.isFinishing) {
+                            if (surface.closed || !scope.isActive || activity.isDestroyed || activity.isFinishing) {
                                 surface.close(); surfaces.remove(dialog); return@capture
                             }
                             if (!ready) {
                                 surface.close(); surfaces.remove(dialog)
+                                nativeShow(dialog)
                                 return@capture
                             }
                             runCatching {
+                                // Suppress the native window until the glass surface is ready;
+                                // otherwise the native menu flashes before being replaced.
                                 surface.mount()
+                                nativeShow(dialog)
                                 MediaRuntime.log("player_more_glass: first window shown with floating iOS menu")
                             }.onFailure {
                                 surface.close(); surfaces.remove(dialog)
                                 MediaRuntime.log("player_more_glass: native fallback", it)
+                                nativeShow(dialog)
                             }
                         }
+                        param.result = null
                     } catch (error: Throwable) {
                         surface.close(); surfaces.remove(dialog)
                         MediaRuntime.log("player_more_glass: capture failed", error)
@@ -225,16 +245,15 @@ internal class PlayerMoreMenuIntegration(private val build: TargetBuild, private
         private val position = IntArray(2)
         private val windowPosition = IntArray(2)
         private var loggedBounds: PlayerMenuBounds? = null
+        private var currentPlacement: PlayerMenuPlacement? = null
         private var entered = false
         private var exitStarted = false
         private val preDraw = ViewTreeObserver.OnPreDrawListener {
             layout()
-            if (!entered && loggedBounds != null) {
+            val placement = currentPlacement
+            if (!entered && placement != null) {
                 entered = true
-                card.scaleX = .76f
-                card.scaleY = .76f
-                card.alpha = 0f
-                card.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(180).start()
+                LiquidPopupMotion.enter(card, placement.pivotX, placement.pivotY, placement.direction)
             }
             true
         }
@@ -261,6 +280,7 @@ internal class PlayerMoreMenuIntegration(private val build: TargetBuild, private
                 root.removeOnAttachStateChangeListener(attached)
                 tree?.takeIf { it.isAlive }?.removeOnPreDrawListener(preDraw); tree = null
                 card.animate().cancel()
+                LiquidPopupMotion.cancel(card)
                 backdrop.close()
             },
             restore = {
@@ -317,9 +337,11 @@ internal class PlayerMoreMenuIntegration(private val build: TargetBuild, private
             val centered = bounds(contentHeight)
             val x = anchor?.let { it.centerX() - position[0] }
             val y = anchor?.let { it.centerY() - position[1] }
-            val target = PlayerMenuLayout.place(centered, root.width, root.height, safe, x, y)
-            card.pivotX = x?.let { (it - target.left).coerceIn(0, target.width).toFloat() } ?: target.width / 2f
-            card.pivotY = y?.let { (it - target.top).coerceIn(0, target.height).toFloat() } ?: target.height.toFloat()
+            val placement = PlayerMenuLayout.placeAnchored(centered, root.width, root.height, safe, x, y)
+            currentPlacement = placement
+            val target = placement.bounds
+            card.pivotX = placement.pivotX
+            card.pivotY = placement.pivotY
             val params = card.layoutParams as FrameLayout.LayoutParams
             if (params.width != target.width || params.height != target.height || params.leftMargin != target.left || params.topMargin != target.top) {
                 params.width = target.width; params.height = target.height
@@ -341,9 +363,12 @@ internal class PlayerMoreMenuIntegration(private val build: TargetBuild, private
             if (closed || !entered || !card.isAttachedToWindow || activity.isFinishing || activity.isDestroyed) return false
             if (!exitStarted) {
                 exitStarted = true
-                card.animate().alpha(0f).scaleX(.76f).scaleY(.76f).setDuration(140).start()
-                // Detaching a View cancels its animator. Always complete the host dismissal.
-                main.postDelayed({ end() }, 140)
+                val placement = currentPlacement
+                if (placement != null) {
+                    LiquidPopupMotion.exit(card, placement.pivotX, placement.pivotY, placement.direction) { end() }
+                } else {
+                    end()
+                }
             }
             return true
         }

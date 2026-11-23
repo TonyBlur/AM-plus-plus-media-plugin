@@ -119,4 +119,16 @@ class MediaSettingsStoreTest {
         assertFalse(SleepTimerSelectionPolicy.interceptNativeSelection(60_000L, stopAfterTrack = false))
         assertTrue(SleepTimerSelectionPolicy.interceptNativeSelection(60_000L, stopAfterTrack = true))
     }
+    @Test fun `sleep timer stops only when the queue index signature changes after expiry`() {
+        assertFalse(SleepTimerFinishPolicy.shouldStopOnIndexChange(false, listOf(1, 2), listOf(2, 3)))
+        assertFalse(SleepTimerFinishPolicy.shouldStopOnIndexChange(true, listOf(1, 2), listOf(1, 2)))
+        assertFalse(SleepTimerFinishPolicy.shouldStopOnIndexChange(true, listOf(1, 2), emptyList()))
+        assertTrue(SleepTimerFinishPolicy.shouldStopOnIndexChange(true, listOf(1, 2), listOf(2, 3)))
+        assertTrue(SleepTimerFinishPolicy.shouldStopOnIndexChange(true, emptyList(), listOf(2, 3)))
+    }
+    @Test fun `sleep timer stops on playback end state after expiry`() {
+        assertFalse(SleepTimerFinishPolicy.shouldStopOnPlaybackEnd(false, listOf(4)))
+        assertFalse(SleepTimerFinishPolicy.shouldStopOnPlaybackEnd(true, listOf(3)))
+        assertTrue(SleepTimerFinishPolicy.shouldStopOnPlaybackEnd(true, listOf(3, 4)))
+    }
 }

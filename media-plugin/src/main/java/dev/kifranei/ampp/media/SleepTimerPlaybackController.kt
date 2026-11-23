@@ -60,6 +60,19 @@ internal object SleepTimerSelectionPolicy {
         stopAfterTrack && durationMs != null && durationMs > 0L
 }
 
+internal object SleepTimerFinishPolicy {
+    /**
+     * Stop when the current track finishes: either its queue index arguments changed, or the
+     * playback reached ExoPlayer STATE_ENDED (4). Queue-index argument order differs across
+     * Apple Music builds, so compare whole signatures instead of one "index" value.
+     */
+    fun shouldStopOnIndexChange(waiting: Boolean, expiry: List<Int>, current: List<Int>): Boolean =
+        waiting && current.isNotEmpty() && current != expiry
+
+    fun shouldStopOnPlaybackEnd(waiting: Boolean, states: List<Int>): Boolean =
+        waiting && states.any { it == 4 }
+}
+
 internal class SleepTimerPlaybackController(
     private val build: TargetBuild,
     private val enabled: () -> Boolean,
@@ -122,12 +135,15 @@ internal class SleepTimerPlaybackController(
             if (indexMethod != null) {
                 MediaRuntime.observeMethod(indexMethod, object : PluginMethodHook() {
                     override fun afterHookedMethod(param: MethodHookParam) {
+                        val playerArg = param.args.firstOrNull()
+                        if (playerArg != null && exoClass?.isInstance(playerArg) == true) exoPlayer = playerArg
                         val ints = param.args.filterIsInstance<Int>()
-                        if (ints.isEmpty()) return
-                        indexSignature = ints
-                        if (waitingForTrackEnd && ints != expirySignature) {
+                        if (SleepTimerFinishPolicy.shouldStopOnIndexChange(waitingForTrackEnd, expirySignature, ints)) {
+                            indexSignature = ints
                             MediaRuntime.log("sleep_timer: track changed after the timer expired", null)
                             stopAfterTrack()
+                        } else if (ints.isNotEmpty()) {
+                            indexSignature = ints
                         }
                     }
                 }, scope)
@@ -141,10 +157,10 @@ internal class SleepTimerPlaybackController(
             if (stateMethod != null) {
                 MediaRuntime.observeMethod(stateMethod, object : PluginMethodHook() {
                     override fun afterHookedMethod(param: MethodHookParam) {
-                        // ExoPlayer STATE_ENDED (4) means the queue is over, which also
-                        // finishes the current track. Do not depend on queue-index values:
-                        // their argument order differs across Apple Music builds.
-                        if (waitingForTrackEnd && param.args.filterIsInstance<Int>().any { it == 4 }) {
+                        val playerArg = param.args.firstOrNull()
+                        if (playerArg != null && exoClass?.isInstance(playerArg) == true) exoPlayer = playerArg
+                        val states = param.args.filterIsInstance<Int>()
+                        if (SleepTimerFinishPolicy.shouldStopOnPlaybackEnd(waitingForTrackEnd, states)) {
                             MediaRuntime.log("sleep_timer: playback ended after the timer expired", null)
                             stopAfterTrack()
                         }

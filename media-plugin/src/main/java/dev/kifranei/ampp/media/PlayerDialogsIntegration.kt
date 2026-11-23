@@ -149,10 +149,21 @@ internal class PlayerDialogsIntegration(
                     }
                 }
             }, scope))
-            check(MediaRuntime.observeMethod(Dialog::class.java.getDeclaredMethod("dismiss"), object : PluginMethodHook() {
+            check(MediaRuntime.hookMethod(Dialog::class.java.getDeclaredMethod("dismiss"), object : PluginMethodHook() {
+                override fun beforeHookedMethod(param: MethodHookParam) {
+                    val dialog = param.thisObject as? Dialog ?: return
+                    val surface = surfaces[dialog] ?: return
+                    if (surface.animateDismiss {
+                        if (surfaces[dialog] === surface) surfaces.remove(dialog)
+                        surface.close()
+                        if (dialog.isShowing) dialog.dismiss()
+                    }) param.result = null
+                }
                 override fun afterHookedMethod(param: MethodHookParam) {
-                    surfaces.remove(param.thisObject)?.close()
-                    (param.thisObject as? Dialog)?.let(GlassDialogOwnership::release)
+                    if ((param.thisObject as? Dialog)?.isShowing == false) {
+                        surfaces.remove(param.thisObject)?.close()
+                        (param.thisObject as? Dialog)?.let(GlassDialogOwnership::release)
+                    }
                     confirmationOwners.entries.removeAll { it.value === param.thisObject }
                     sleepOwners.entries.removeAll { it.value === param.thisObject }
                 }
@@ -228,6 +239,7 @@ internal class PlayerDialogsIntegration(
                 list?.setOnTouchListener(null)
                 enterAnimator?.cancel()
                 enterAnimator = null
+                LiquidPopupMotion.cancel(card)
                 backdrop.close()
             },
             restore = {
@@ -260,6 +272,12 @@ internal class PlayerDialogsIntegration(
             root.addView(card, FrameLayout.LayoutParams(1, 1))
         }
         fun capture(ready: (Boolean) -> Unit) = backdrop.capture(ready)
+        fun animateDismiss(end: () -> Unit): Boolean {
+            if (closed || exitStarted || !card.isAttachedToWindow || activity.isFinishing || activity.isDestroyed) return false
+            exitStarted = true
+            LiquidPopupMotion.exit(card, card.width / 2f, card.height / 2f, PlayerMenuOpenDirection.CENTER) { end() }
+            return true
+        }
         fun mount() {
             check(!closed)
             mounted = true

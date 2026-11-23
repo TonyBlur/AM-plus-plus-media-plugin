@@ -13,6 +13,25 @@ class PlayerMenuLayoutTest {
         assertEquals(card.copy(left = 125, top = 260), place(375, 560))
         assertEquals(card.copy(left = 138, top = 40), place(420, 20))
     }
+    @Test fun `placement follows the anchor's free space and picks the expansion direction`() {
+        val card = PlayerMenuBounds(75, 250, 250, 300)
+        val safe = PlayerMenuInsets(10, 40, 12, 24)
+        val centered = PlayerMenuLayout.placeAnchored(card, 400, 800, safe, null, null)
+        assertEquals(PlayerMenuOpenDirection.CENTER, centered.direction)
+
+        val below = PlayerMenuLayout.placeAnchored(card, 400, 800, safe, 375, 60)
+        assertEquals(PlayerMenuOpenDirection.DOWN, below.direction)
+        assertEquals(125, below.bounds.left); assertEquals(60, below.bounds.top)
+        assertEquals(250f, below.pivotX, 0f); assertEquals(0f, below.pivotY, 0f)
+
+        val above = PlayerMenuLayout.placeAnchored(card, 400, 800, safe, 375, 560)
+        assertEquals(PlayerMenuOpenDirection.UP, above.direction)
+        assertEquals(300f, above.pivotY, 0f)
+
+        val rightward = PlayerMenuLayout.placeAnchored(card, 400, 800, safe, 20, 60)
+        assertEquals(PlayerMenuOpenDirection.DOWN, rightward.direction)
+        assertEquals(20, rightward.bounds.left); assertEquals(0f, rightward.pivotX, 0f)
+    }
     @Test fun `quick actions and sections preserve every native command once`() {
         val actions = listOf("ADD_TO_LIBRARY", "ADD_TO_PLAYLIST", "SHARE_SONG", "SHARE_LYRICS", "CREATE_STATION",
             "VIEW_SONG_CREDITS", "SLEEP_TIMER", "FAVORITE_ITEM", "SUGGEST_LESS", "OPEN_ALBUM", "OPEN_ARTIST")
