@@ -12,6 +12,9 @@ import android.view.ViewOutlineProvider
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.widget.FrameLayout
+import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
+import android.view.animation.OvershootInterpolator
 import kotlin.math.roundToInt
 
 internal class AudioQualityGlassFeature {
@@ -68,13 +71,19 @@ internal class AudioQualityGlassFeature {
         val settingsLabel = surface.settingsLabel.toString()
         glass.content { GlassAudioQualityCard(backdrop, surface.badge, surface.title.toString(), surface.encoding.toString(),
             surface.source.toString(), settingsLabel, surface.doneLabel.toString(), surface.openSettings, surface.done) }
-        fun restore() {
+        var exitStarted = false
+        fun restoreNow() {
             nativeContent.removeAllViews()
             nativeChildren.forEach { child -> (child.parent as? ViewGroup)?.removeView(child); nativeContent.addView(child) }
             window.setBackgroundDrawable(background)
             window.attributes = attributes
             backdrop.close()
             if (!activity.isFinishing && !activity.isDestroyed && !dialog.isShowing) surface.show()
+        }
+        fun restore() {
+            if (exitStarted) return
+            exitStarted = true
+            LiquidPopupMotion.exit(frame) { restoreNow() }
         }
         try {
             backdrop.capture { ready ->
@@ -87,6 +96,7 @@ internal class AudioQualityGlassFeature {
                     window.setDimAmount(.18f)
                     window.setWindowAnimations(0)
                     surface.show()
+                    LiquidPopupMotion.enter(frame)
                     MediaRuntime.log("audio_quality_glass: first window shown with glass content")
                 }.onFailure { restore(); MediaRuntime.log("audio quality glass popup failed", it) }
             }

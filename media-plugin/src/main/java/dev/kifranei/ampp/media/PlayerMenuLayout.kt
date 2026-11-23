@@ -4,6 +4,13 @@ internal data class PlayerMenuAction(val key: String, val index: Int)
 internal data class PlayerMenuGroups(val shortcuts: List<PlayerMenuAction?>, val sections: List<List<PlayerMenuAction>>)
 internal data class PlayerMenuBounds(val left: Int, val top: Int, val width: Int, val height: Int)
 internal data class PlayerMenuInsets(val left: Int, val top: Int, val right: Int, val bottom: Int)
+internal enum class PlayerMenuOpenDirection { UP, DOWN, CENTER }
+internal data class PlayerMenuPlacement(
+    val bounds: PlayerMenuBounds,
+    val direction: PlayerMenuOpenDirection,
+    val pivotX: Float,
+    val pivotY: Float,
+)
 
 /** Arrange only actions supplied by AM; an unavailable shortcut never invents a command. */
 internal object PlayerMenuLayout {
@@ -35,7 +42,29 @@ internal object PlayerMenuLayout {
             (root.top + root.height - (window.top + window.height - insets.bottom)).coerceIn(0, root.height.coerceAtLeast(0)),
         )
 
-    /** Keep the original upper-right card position independent of native player animations. */
+    fun place(centered: PlayerMenuBounds, width: Int, height: Int, safe: PlayerMenuInsets,
+        x: Int?, y: Int?): PlayerMenuBounds = placeAnchored(centered, width, height, safe, x, y).bounds
+
+    /** Open toward free space: top half expands down, bottom half up, left half grows to the right. */
+    fun placeAnchored(centered: PlayerMenuBounds, width: Int, height: Int, safe: PlayerMenuInsets,
+        x: Int?, y: Int?): PlayerMenuPlacement {
+        if (x == null || y == null) return PlayerMenuPlacement(
+            centered, PlayerMenuOpenDirection.CENTER, centered.width / 2f, centered.height / 2f)
+        val left = if (x < width / 2) x else x - centered.width
+        val top = if (y < height / 2) y else y - centered.height
+        val leftClamped = left.coerceIn(safe.left, maxOf(safe.left, width - safe.right - centered.width))
+        val topClamped = top.coerceIn(safe.top, maxOf(safe.top, height - safe.bottom - centered.height))
+        return PlayerMenuPlacement(
+            centered.copy(left = leftClamped, top = topClamped),
+            if (y < height / 2) PlayerMenuOpenDirection.DOWN else PlayerMenuOpenDirection.UP,
+            (x - leftClamped).coerceIn(0, centered.width).toFloat(),
+            (y - topClamped).coerceIn(0, centered.height).toFloat(),
+        )
+    }
+
+    /** Center the native more-menu card independent of native player animations.
+     *  Its visual origin remains the trigger button through the popup motion pivot.
+     */
     fun bounds(width: Int, height: Int, density: Float, topInset: Int, bottomInset: Int,
         contentHeight: Int, leftInset: Int = 0, rightInset: Int = 0): PlayerMenuBounds {
         val viewportWidth = width.coerceAtLeast(1)
@@ -51,10 +80,10 @@ internal object PlayerMenuLayout {
         val margin = dp(24).coerceAtMost(safeWidth / 8)
         val menuWidth = minOf(dp(340), (safeWidth * .68f).toInt()).coerceAtLeast(1)
             .coerceAtMost((safeWidth - margin * 2).coerceAtLeast(1))
-        val minimumTop = safeTop + dp(12).coerceAtMost(safeHeight / 8)
-        val maximumBottom = viewportHeight - safeBottom - dp(24).coerceAtMost(safeHeight / 8)
-        val maxHeight = minOf(dp(620), (viewportHeight * .60f).toInt(), maximumBottom - minimumTop)
+        val maxHeight = minOf(dp(620), (safeHeight * .72f).toInt()).coerceAtLeast(1)
         val menuHeight = contentHeight.coerceIn(1, maxHeight.coerceAtLeast(1))
-        return PlayerMenuBounds(viewportWidth - safeRight - margin - menuWidth, minimumTop, menuWidth, menuHeight)
+        val left = safeLeft + (safeWidth - menuWidth) / 2
+        val top = safeTop + (safeHeight - menuHeight) / 2
+        return PlayerMenuBounds(left, top, menuWidth, menuHeight)
     }
 }

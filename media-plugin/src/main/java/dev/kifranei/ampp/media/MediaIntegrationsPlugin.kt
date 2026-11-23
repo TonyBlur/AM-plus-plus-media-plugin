@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /** SDK v1 entry; registration, resources and configuration belong to this ZIP. */
 /** Shown in diagnostics; kept in sync with media-plugin/plugin.json by PluginProfileSelectionTest. */
-internal const val PLUGIN_BUILD = "1.3.6/18"
+internal const val PLUGIN_BUILD = "1.3.7/19"
 
 class MediaIntegrationsPlugin : AmppPlugin() {
     private lateinit var runtime: PluginContext
@@ -78,6 +78,13 @@ class MediaIntegrationsPlugin : AmppPlugin() {
                 }
             } finally { MediaDiag.capability = null }
         }
+        val sleepTimerScope = PluginScope()
+        val sleepTimerController = SleepTimerPlaybackController(
+            build,
+            enabled = { store.read().sleepTimerStopAfterTrack },
+            scope = sleepTimerScope,
+        )
+        sleepTimerController.install()
         install("Player artwork recovery", true, "shared:applemusic-player-artwork-measurement") {
             PlayerArtworkRecovery(build).install()
         }
@@ -115,6 +122,10 @@ class MediaIntegrationsPlugin : AmppPlugin() {
         install(text.sharing, configured.sharing, "shared:applemusic-lyric-share-image") {
             CardSharingFeature().install(CardSharingIntegration(app, loader, build))
         }
+
+        install(text.sharing, configured.sharing, "shared:applemusic-share-card") {
+            LyricsMoreShareIntegration(build, loader).install()
+        }
         install(text.qualityGlass, configured.playerGlass, "shared:applemusic-quality-disclosure") {
             AudioQualityGlassFeature().install(AudioQualityIntegration(app, build))
         }
@@ -125,7 +136,19 @@ class MediaIntegrationsPlugin : AmppPlugin() {
             PlayerDialogsIntegration(build, confirmation = true, sleep = false).install()
         }
         install(text.sleepGlass, configured.playerGlass, "shared:applemusic-sleep-timer") {
-            PlayerDialogsIntegration(build, confirmation = false, sleep = true).install()
+            PlayerDialogsIntegration(
+                build,
+                confirmation = false,
+                sleep = true,
+                sleepTimerStopAfterTrack = { store.read().sleepTimerStopAfterTrack },
+                onSleepTimerStopAfterTrackChanged = { enabled ->
+                    writer.execute { store.write(store.read().copy(sleepTimerStopAfterTrack = enabled)) }
+                    sleepTimerController.setEnabled(enabled)
+                    if (!enabled) sleepTimerController.cancel()
+                },
+                onSleepTimerDurationSelected = sleepTimerController::arm,
+                onSleepTimerCancelled = sleepTimerController::cancel,
+            ).install()
         }
         // OPlus ROMs (ColorOS / realme UI / OxygenOS) ship a larger default DPI that breaks the volume bar.
         if (configured.volumeBar && OplusRomDetector.current) {

@@ -16,20 +16,35 @@ import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewOutlineProvider
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.view.WindowInsets
 import android.view.WindowManager
+import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
+import android.view.animation.OvershootInterpolator
 import android.widget.FrameLayout
 import android.widget.TextView
 import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.Switch
 import java.util.IdentityHashMap
 import kotlin.math.roundToInt
 
 /** Narrowly replace native library confirmations and the dedicated sleep-timer fragment. */
-internal class PlayerDialogsIntegration(private val build: TargetBuild, private val confirmation: Boolean, private val sleep: Boolean) {
+internal class PlayerDialogsIntegration(
+    private val build: TargetBuild,
+    private val confirmation: Boolean,
+    private val sleep: Boolean,
+    private val sleepTimerStopAfterTrack: () -> Boolean = { false },
+    private val onSleepTimerStopAfterTrackChanged: (Boolean) -> Unit = {},
+    private val onSleepTimerDurationSelected: (Long) -> Unit = {},
+    private val onSleepTimerCancelled: () -> Unit = {},
+) {
     fun install(): TargetCapabilityInstall {
         if (Build.VERSION.SDK_INT < 33) return TargetCapabilityInstall.Unsupported("完整玻璃折射需要 Android 13+")
         val names = PluginProfiles.find(build.packageName, build.versionName, build.versionCode)?.document?.optJSONObject("playerDialogs")
@@ -45,11 +60,15 @@ internal class PlayerDialogsIntegration(private val build: TargetBuild, private 
             try { dialog.show() } finally { bypass.remove() }
         }
         try {
-            if (confirmation) check(MediaRuntime.observeMethod(PluginProfiles.method("confirmation-dialog-create"), object : PluginMethodHook() {
-                override fun afterHookedMethod(param: MethodHookParam) {
-                    if (param.throwable == null) (param.result as? Dialog)?.let { confirmationOwners[checkNotNull(param.thisObject)] = it }
-                }
-            }, scope))
+            if (confirmation) runCatching { PluginProfiles.method("confirmation-dialog-create") }.onSuccess { confirmationCreate ->
+                check(MediaRuntime.observeMethod(confirmationCreate, object : PluginMethodHook() {
+                    override fun afterHookedMethod(param: MethodHookParam) {
+                        if (param.throwable == null) (param.result as? Dialog)?.let { confirmationOwners[checkNotNull(param.thisObject)] = it }
+                    }
+                }, scope))
+            }.onFailure {
+                MediaRuntime.log("player_dialog_glass: optional confirmation contract unavailable", it)
+            }
             if (sleep) {
                 check(MediaRuntime.observeMethod(PluginProfiles.method("more-dialog-create"), object : PluginMethodHook() {
                     override fun afterHookedMethod(param: MethodHookParam) {
@@ -69,12 +88,14 @@ internal class PlayerDialogsIntegration(private val build: TargetBuild, private 
                     val dialog = param.thisObject as? Dialog ?: return
                     if (bypass.get() === dialog || dialog.isShowing) return
                     if (surfaces.containsKey(dialog)) { param.result = null; return }
-                    val isSleep = sleepOwners.containsValue(dialog)
-                    if (!isSleep && !confirmationOwners.containsValue(dialog)) return
                     val activity = activity(dialog.context)?.takeIf { it.packageName == build.packageName && !it.isFinishing && !it.isDestroyed } ?: return
+                    // More sheets contain a sleep-timer command as well. Only the
+                    // sleep fragment may replace its list with the timer controls.
+                    val isSleep = sleep && sleepOwners.containsValue(dialog)
+                    if (!isSleep && !confirmation) return
                     dialog.create()
-                    val list = if (isSleep) dialog.findViewById<ViewGroup>(activity.resources.getIdentifier(names.getString("sleepListId"), "id", build.packageName)) ?: return else null
                     fun id(key: String) = activity.resources.getIdentifier(names.getString(key), "id", build.packageName)
+                    val list = if (isSleep) dialog.findViewById<ViewGroup>(id("sleepListId")) ?: return else null
                     val message = if (!isSleep) dialog.findViewById<TextView>(id("confirmationMessageId"))?.text?.toString() ?: return else ""
                     val deleteLabel = if (!isSleep) activity.getString(activity.resources.getIdentifier(names.getString("deleteLabel"), "string", build.packageName)) else ""
                     val buttons = if (!isSleep) dialog.findViewById<ViewGroup>(id("confirmationButtonsId"))?.let { container ->
@@ -93,9 +114,19 @@ internal class PlayerDialogsIntegration(private val build: TargetBuild, private 
                     val actions = buttons.sortedBy { it.text.toString() == deleteLabel }.map { button ->
                         GlassDialogAction(button.text.toString(), button.text.toString() == deleteLabel) { button.performClick() }
                     }
-                    val surface = runCatching { Surface(activity, dialog, list, title, message, actions,
-                        if (isSleep) id("sleepTitleId") else 0) }
-                        .onFailure { MediaRuntime.log("player_dialog_glass: preparation failed", it) }.getOrNull() ?: return
+                    val surface = runCatching {
+                        GlassDialogOwnership.claim(dialog, "dialog")
+                        Surface(activity, dialog, list, title, message, actions,
+                        if (isSleep) id("sleepTitleId") else 0,
+                        sleepTimerStopAfterTrack = if (isSleep) sleepTimerStopAfterTrack else { { false } },
+                        onSleepTimerStopAfterTrackChanged = if (isSleep) onSleepTimerStopAfterTrackChanged else { _ -> Unit },
+                        onSleepTimerDurationSelected = if (isSleep) onSleepTimerDurationSelected else { _ -> Unit },
+                        onSleepTimerCancelled = if (isSleep) onSleepTimerCancelled else { { } }) }
+                        .onFailure { MediaRuntime.log("player_dialog_glass: preparation failed", it) }.getOrNull()
+                    if (surface == null) {
+                        GlassDialogOwnership.release(dialog)
+                        return
+                    }
                     surfaces[dialog] = surface
                     try {
                         surface.capture { ready ->
@@ -118,9 +149,21 @@ internal class PlayerDialogsIntegration(private val build: TargetBuild, private 
                     }
                 }
             }, scope))
-            check(MediaRuntime.observeMethod(Dialog::class.java.getDeclaredMethod("dismiss"), object : PluginMethodHook() {
+            check(MediaRuntime.hookMethod(Dialog::class.java.getDeclaredMethod("dismiss"), object : PluginMethodHook() {
+                override fun beforeHookedMethod(param: MethodHookParam) {
+                    val dialog = param.thisObject as? Dialog ?: return
+                    val surface = surfaces[dialog] ?: return
+                    if (surface.animateDismiss {
+                        if (surfaces[dialog] === surface) surfaces.remove(dialog)
+                        surface.close()
+                        if (dialog.isShowing) dialog.dismiss()
+                    }) param.result = null
+                }
                 override fun afterHookedMethod(param: MethodHookParam) {
-                    surfaces.remove(param.thisObject)?.close()
+                    if ((param.thisObject as? Dialog)?.isShowing == false) {
+                        surfaces.remove(param.thisObject)?.close()
+                        (param.thisObject as? Dialog)?.let(GlassDialogOwnership::release)
+                    }
                     confirmationOwners.entries.removeAll { it.value === param.thisObject }
                     sleepOwners.entries.removeAll { it.value === param.thisObject }
                 }
@@ -128,6 +171,7 @@ internal class PlayerDialogsIntegration(private val build: TargetBuild, private 
             scope.onClose {
                 surfaces.values.toList().forEach(Surface::close)
                 surfaces.clear(); sleepOwners.clear(); confirmationOwners.clear(); bypass.remove()
+                GlassDialogOwnership.releaseAll("dialog")
             }
             scope.activate()
             return TargetCapabilityInstall.Active("Native ${if (sleep) "sleep-timer options" else "library confirmation actions"} in glass popup installed")
@@ -136,17 +180,26 @@ internal class PlayerDialogsIntegration(private val build: TargetBuild, private 
 
     @android.annotation.TargetApi(33)
     private class Surface(private val activity: Activity, private val dialog: Dialog, private val list: ViewGroup?,
-        private val title: String, private val message: String, private val actions: List<GlassDialogAction>, private val sleepTitleId: Int) : AutoCloseable {
+        private val title: String, private val message: String, private val actions: List<GlassDialogAction>, private val sleepTitleId: Int,
+        private val sleepTimerStopAfterTrack: () -> Boolean,
+        private val onSleepTimerStopAfterTrackChanged: (Boolean) -> Unit,
+        private val onSleepTimerDurationSelected: (Long) -> Unit,
+        private val onSleepTimerCancelled: () -> Unit) : AutoCloseable {
         private val main = Handler(Looper.getMainLooper())
         private val window = checkNotNull(dialog.window)
         private val content = checkNotNull(window.decorView.findViewById<ViewGroup>(android.R.id.content))
-        private val children = (0 until content.childCount).map { content.getChildAt(it) to content.getChildAt(it).visibility }
+        // Native dialog content can be attached after Dialog.show() returns (DialogFragment inflates
+        // its view later), so keep hiding non-glass children until the popup closes. Hiding only the
+        // snapshot taken at construction left the native sheet visible under the glass one.
+        private val hiddenNative = IdentityHashMap<View, Int>()
         private val attributes = WindowManager.LayoutParams().apply { copyFrom(window.attributes) }
         private val background = window.decorView.background
         private val listParent = list?.parent as? ViewGroup
         private val listIndex = listParent?.indexOfChild(list) ?: -1
         private val listParams = list?.layoutParams
         private val listBackground = list?.background
+        private var sleepOptionContainer: LinearLayout? = null
+        private var sleepOptionSwitch: Switch? = null
         private val styled = IdentityHashMap<View, () -> Unit>()
         private val backgrounds = IdentityHashMap<View, android.graphics.drawable.Drawable?>()
         private val root = FrameLayout(activity).apply { setOnClickListener { dialog.cancel() } }
@@ -168,8 +221,10 @@ internal class PlayerDialogsIntegration(private val build: TargetBuild, private 
         private val backdrop = DialogWindowBackdrop(activity, glass, live = true)
         private var mounted = false
         private var tree: ViewTreeObserver? = null
+        private var enterAnimator: AnimatorSet? = null
+        private var exitStarted = false
         private val position = IntArray(2)
-        private val preDraw = ViewTreeObserver.OnPreDrawListener { layout(); backdrop.refreshPosition(); true }
+        private val preDraw = ViewTreeObserver.OnPreDrawListener { hideNativeContent(); layout(); backdrop.refreshPosition(); true }
         val closed: Boolean get() = cleanup.closed
         private val attached = object : View.OnAttachStateChangeListener {
             override fun onViewAttachedToWindow(view: View) { tree = root.viewTreeObserver.also { it.addOnPreDrawListener(preDraw) } }
@@ -180,11 +235,21 @@ internal class PlayerDialogsIntegration(private val build: TargetBuild, private 
             stop = {
                 root.removeOnAttachStateChangeListener(attached)
                 tree?.takeIf { it.isAlive }?.removeOnPreDrawListener(preDraw); tree = null
+                sleepOptionSwitch?.setOnCheckedChangeListener(null)
+                list?.setOnTouchListener(null)
+                enterAnimator?.cancel()
+                enterAnimator = null
+                LiquidPopupMotion.cancel(card)
                 backdrop.close()
             },
             restore = {
                 if (mounted) {
                     (root.parent as? ViewGroup)?.removeView(root)
+                    sleepOptionContainer?.let { container ->
+                        (container.parent as? ViewGroup)?.removeView(container)
+                    }
+                    sleepOptionContainer = null
+                    sleepOptionSwitch = null
                     list?.let {
                         (it.parent as? ViewGroup)?.removeView(it)
                         styled.values.toList().forEach { restore -> restore() }; styled.clear()
@@ -192,7 +257,8 @@ internal class PlayerDialogsIntegration(private val build: TargetBuild, private 
                         it.background = listBackground
                         listParent?.addView(it, listIndex.coerceAtMost(listParent.childCount), listParams)
                     }
-                    children.forEach { (child, visible) -> child.visibility = visible }
+                    hiddenNative.forEach { (child, visible) -> child.visibility = visible }
+                    hiddenNative.clear()
                 }
                 window.setBackgroundDrawable(background); window.attributes = attributes
             },
@@ -206,22 +272,98 @@ internal class PlayerDialogsIntegration(private val build: TargetBuild, private 
             root.addView(card, FrameLayout.LayoutParams(1, 1))
         }
         fun capture(ready: (Boolean) -> Unit) = backdrop.capture(ready)
+        fun animateDismiss(end: () -> Unit): Boolean {
+            if (closed || exitStarted || !card.isAttachedToWindow || activity.isFinishing || activity.isDestroyed) return false
+            exitStarted = true
+            LiquidPopupMotion.exit(card, card.width / 2f, card.height / 2f, PlayerMenuOpenDirection.CENTER) { end() }
+            return true
+        }
         fun mount() {
             check(!closed)
             mounted = true
             list?.let {
                 listParent?.removeView(it)
                 it.setBackgroundColor(Color.TRANSPARENT)
-                card.addView(it, FrameLayout.LayoutParams(-1, -1).apply { setMargins(dp(16), dp(12), dp(16), dp(12)) })
+                it.setOnTouchListener { _, event ->
+                    var intercept = false
+                    if (event.actionMasked == MotionEvent.ACTION_UP) {
+                        val row = SleepTimerDurationParser.rowAt(it, event.rawX, event.rawY)
+                        val text = row?.let(SleepTimerDurationParser::textOf).orEmpty()
+                        val duration = SleepTimerDurationParser.parse(text)
+                        if (duration != null) {
+                            if (duration == 0L) onSleepTimerCancelled()
+                            else onSleepTimerDurationSelected(duration)
+                            intercept = SleepTimerSelectionPolicy.interceptNativeSelection(duration, sleepTimerStopAfterTrack())
+                            if (intercept) dialog.dismiss()
+                        }
+                    }
+                    intercept
+                }
+                val container = LinearLayout(activity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    addView(it, LinearLayout.LayoutParams(-1, -2).apply {
+                        setMargins(dp(16), dp(12), dp(16), 0)
+                    })
+                    val text = MediaSettingsText.forLanguage(activity.resources.configuration.locales[0].language)
+                    val row = LinearLayout(activity).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        setPadding(dp(16), dp(10), dp(16), dp(12))
+                    }
+                    val copy = LinearLayout(activity).apply {
+                        orientation = LinearLayout.VERTICAL
+                        layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
+                    }
+                    val titleView = TextView(activity).apply {
+                        setText(text.sleepTimerStopAfterTrack)
+                        setTextColor(Color.WHITE)
+                        textSize = 15f
+                    }
+                    val summaryView = TextView(activity).apply {
+                        setText(text.sleepTimerStopAfterTrackDescription)
+                        setTextColor(Color.argb(210, 255, 255, 255))
+                        textSize = 12f
+                        setLineSpacing(0f, 1.15f)
+                    }
+                    copy.addView(titleView)
+                    copy.addView(summaryView)
+                    val option = Switch(activity).apply {
+                        isChecked = sleepTimerStopAfterTrack()
+                        thumbTintList = ColorStateList.valueOf(Color.WHITE)
+                        trackTintList = ColorStateList.valueOf(Color.argb(180, 255, 255, 255))
+                        setOnCheckedChangeListener { _, enabled -> onSleepTimerStopAfterTrackChanged(enabled) }
+                    }
+                    row.addView(copy)
+                    row.addView(option, LinearLayout.LayoutParams(-2, -2).apply {
+                        gravity = Gravity.CENTER_VERTICAL
+                    })
+                    sleepOptionContainer = this
+                    sleepOptionSwitch = option
+                    addView(row, LinearLayout.LayoutParams(-1, -2))
+                }
+                card.addView(container, FrameLayout.LayoutParams(-1, -1).apply {
+                    setMargins(dp(16), dp(12), dp(16), dp(12))
+                })
             }
-            children.forEach { (child, _) -> child.visibility = View.INVISIBLE }
+            hideNativeContent()
             root.addOnAttachStateChangeListener(attached)
             content.addView(root, ViewGroup.LayoutParams(-1, -1))
+            hideNativeContent()
             window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             window.setWindowAnimations(0); window.setDimAmount(.18f)
             window.setGravity(Gravity.FILL); window.setLayout(-1, -1)
+            LiquidPopupMotion.enter(card)
         }
         private fun dp(value: Int) = (value * activity.resources.displayMetrics.density).roundToInt()
+
+        /** Hide every native child except our glass root; new children may appear after show(). */
+        private fun hideNativeContent() {
+            for (index in 0 until content.childCount) {
+                val child = content.getChildAt(index)
+                if (child === root) continue
+                if (!hiddenNative.containsKey(child)) hiddenNative[child] = child.visibility
+                if (child.visibility != View.INVISIBLE) child.visibility = View.INVISIBLE
+            }
+        }
         private fun layout() {
             if (closed || root.width <= 0 || root.height <= 0) return
             root.getLocationOnScreen(position)
@@ -231,9 +373,16 @@ internal class PlayerDialogsIntegration(private val build: TargetBuild, private 
             val width = minOf(dp(360), root.width - dp(32))
             val maxHeight = (root.height - top - bottom - dp(48)).coerceAtLeast(1)
             val height = if (list != null) {
-                list.measure(View.MeasureSpec.makeMeasureSpec((width - dp(32)).coerceAtLeast(1), View.MeasureSpec.EXACTLY),
-                    View.MeasureSpec.makeMeasureSpec((maxHeight - dp(24)).coerceAtLeast(1), View.MeasureSpec.AT_MOST))
-                (list.measuredHeight + dp(24)).coerceIn(dp(160).coerceAtMost(maxHeight), maxHeight)
+                val optionHeight = if (sleepOptionContainer != null) dp(76) else 0
+                val listAvailable = (maxHeight - dp(24) - optionHeight).coerceAtLeast(1)
+                list.measure(View.MeasureSpec.makeMeasureSpec((width - dp(64)).coerceAtLeast(1), View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(listAvailable, View.MeasureSpec.AT_MOST))
+                sleepOptionContainer?.measure(
+                    View.MeasureSpec.makeMeasureSpec((width - dp(32)).coerceAtLeast(1), View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(optionHeight.coerceAtLeast(1), View.MeasureSpec.AT_MOST),
+                )
+                val measuredOption = if (sleepOptionContainer != null) sleepOptionContainer!!.measuredHeight.coerceAtLeast(optionHeight) else 0
+                (list.measuredHeight + measuredOption + dp(24)).coerceIn(dp(160).coerceAtMost(maxHeight), maxHeight)
             } else {
                 val paint = TextPaint().apply { textSize = 18 * activity.resources.displayMetrics.scaledDensity }
                 fun textHeight(text: String) = StaticLayout.Builder.obtain(text, 0, text.length, paint, (width - dp(44)).coerceAtLeast(1))
@@ -287,7 +436,11 @@ internal class PlayerDialogsIntegration(private val build: TargetBuild, private 
             }
             if (view is ViewGroup) for (index in 0 until view.childCount) styleChildren(view.getChildAt(index))
         }
-        override fun close() = cleanup.close()
+        override fun close() {
+            if (exitStarted || cleanup.closed) return
+            exitStarted = true
+            LiquidPopupMotion.exit(card) { cleanup.close() }
+        }
     }
 
     private fun activity(context: Context): Activity? {

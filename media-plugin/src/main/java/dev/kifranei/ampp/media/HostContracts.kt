@@ -73,9 +73,36 @@ internal object PluginProfiles {
     private fun resolveMethod(key: String): Method {
         val contract = document.getJSONObject("indexed").getJSONObject("methodContracts").getJSONObject(key)
         val parameters = contract.getJSONArray("parameters")
-        return type(contract.getString("owner")).getDeclaredMethod(contract.getString("name"),
-            *(0 until parameters.length()).map { type(parameters.getString(it)) }.toTypedArray()).apply {
-            check(returnType == type(contract.getString("returns")) && Modifier.isStatic(modifiers) == contract.getBoolean("static")) {
+        val owner = type(contract.getString("owner"))
+        val parameterTypes = (0 until parameters.length()).map { type(parameters.getString(it)) }.toTypedArray()
+        val name = contract.getString("name")
+        val exact = runCatching { owner.getDeclaredMethod(name, *parameterTypes) }.getOrNull()
+        val expectedReturn = type(contract.getString("returns"))
+        val expectedStatic = contract.getBoolean("static")
+        exact?.takeIf { it.returnType == expectedReturn && Modifier.isStatic(it.modifiers) == expectedStatic }?.apply {
+            isAccessible = true
+        }?.let { return it }
+
+        // 1622/other builds may move a method into a superclass or keep the same
+        // invocation shape while changing compiler-mangled metadata. Traverse the
+        // hierarchy and accept only a method with matching name, parameters,
+        // return type and static shape.
+        var current: Class<*>? = owner
+        while (current != null) {
+            val inherited = runCatching {
+                current.getDeclaredMethods().firstOrNull { candidate ->
+                    candidate.name == name &&
+                        candidate.parameterTypes.contentEquals(parameterTypes) &&
+                        candidate.returnType == expectedReturn &&
+                        Modifier.isStatic(candidate.modifiers) == expectedStatic
+                }
+            }.getOrNull()
+            if (inherited != null) return inherited.apply { isAccessible = true }
+            current = current.superclass
+        }
+
+        return owner.getDeclaredMethod(name, *parameterTypes).apply {
+            check(returnType == expectedReturn && Modifier.isStatic(modifiers) == expectedStatic) {
                 "return/static mismatch"
             }
             isAccessible = true
@@ -83,8 +110,43 @@ internal object PluginProfiles {
     }
     private fun resolveField(key: String): java.lang.reflect.Field {
         val contract = document.getJSONObject("indexed").getJSONObject("fieldContracts").getJSONObject(key)
-        return type(contract.getString("owner")).getDeclaredField(contract.getString("name")).apply {
-            check(type == PluginProfiles.type(contract.getString("type")) && !Modifier.isStatic(modifiers)) { "type/static mismatch" }
+        val owner = type(contract.getString("owner"))
+        val name = contract.getString("name")
+        val expectedType = type(contract.getString("type"))
+        val exact = runCatching { owner.getDeclaredField(name) }.getOrNull()
+        exact?.takeIf { it.type == expectedType && !Modifier.isStatic(it.modifiers) }?.apply {
+            isAccessible = true
+        }?.let { return it }
+
+        var current: Class<*>? = owner
+        while (current != null) {
+            val compatible = runCatching {
+                current.getDeclaredFields().firstOrNull { candidate ->
+                    candidate.name == name &&
+                        candidate.type == expectedType &&
+                        !Modifier.isStatic(candidate.modifiers)
+                }
+            }.getOrNull()
+            if (compatible != null) return compatible.apply { isAccessible = true }
+            current = current.superclass
+        }
+
+        // 1622 compiler-mangled layouts can change a field's concrete Java type.
+        // Same-name instance fallback is safer for UI/controller ownership than
+        // disabling the whole capability, and the caller type-checks the object.
+        current = owner
+        while (current != null) {
+            val sameName = runCatching {
+                current.getDeclaredFields().firstOrNull { candidate ->
+                    candidate.name == name && !Modifier.isStatic(candidate.modifiers)
+                }
+            }.getOrNull()
+            if (sameName != null) return sameName.apply { isAccessible = true }
+            current = current.superclass
+        }
+
+        return owner.getDeclaredField(name).apply {
+            check(type == expectedType && !Modifier.isStatic(modifiers)) { "type/static mismatch" }
             isAccessible = true
         }
     }

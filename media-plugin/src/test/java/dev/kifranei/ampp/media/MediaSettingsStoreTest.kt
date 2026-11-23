@@ -95,4 +95,40 @@ class MediaSettingsStoreTest {
             assertTrue(store.read().playerGlass)
         }
     }
+    @Test fun `sleep timer stop-after-track switch defaults off and round trips`() {
+        assertFalse(MediaSettings().sleepTimerStopAfterTrack)
+        assertFalse(MediaSettings.decode("{}").sleepTimerStopAfterTrack)
+        assertTrue(MediaSettings.decode("{\"sleep_timer_stop_after_track\":true}").sleepTimerStopAfterTrack)
+        val store = MediaSettingsStore(temporary.root)
+        store.write(MediaSettings(sleepTimerStopAfterTrack = true))
+        assertTrue(store.read().sleepTimerStopAfterTrack)
+        assertTrue(store.read().encode().contains("sleep_timer_stop_after_track"))
+    }
+    @Test fun `sleep timer duration parser handles Chinese English and off values`() {
+        assertEquals(15 * 60_000L, SleepTimerDurationParser.parse("15 分钟"))
+        assertEquals(30 * 60_000L, SleepTimerDurationParser.parse("30 minutes"))
+        assertEquals(2 * 3_600_000L, SleepTimerDurationParser.parse("2 hours"))
+        assertEquals(3 * 3_600_000L, SleepTimerDurationParser.parse("3 小时"))
+        assertEquals(0L, SleepTimerDurationParser.parse("关闭"))
+        assertEquals(0L, SleepTimerDurationParser.parse("Off"))
+        assertEquals(null, SleepTimerDurationParser.parse("End of playback"))
+    }
+    @Test fun `sleep timer selection only intercepts positive durations when stop after track is on`() {
+        assertFalse(SleepTimerSelectionPolicy.interceptNativeSelection(null, stopAfterTrack = true))
+        assertFalse(SleepTimerSelectionPolicy.interceptNativeSelection(0L, stopAfterTrack = true))
+        assertFalse(SleepTimerSelectionPolicy.interceptNativeSelection(60_000L, stopAfterTrack = false))
+        assertTrue(SleepTimerSelectionPolicy.interceptNativeSelection(60_000L, stopAfterTrack = true))
+    }
+    @Test fun `sleep timer stops only when the queue index signature changes after expiry`() {
+        assertFalse(SleepTimerFinishPolicy.shouldStopOnIndexChange(false, listOf(1, 2), listOf(2, 3)))
+        assertFalse(SleepTimerFinishPolicy.shouldStopOnIndexChange(true, listOf(1, 2), listOf(1, 2)))
+        assertFalse(SleepTimerFinishPolicy.shouldStopOnIndexChange(true, listOf(1, 2), emptyList()))
+        assertTrue(SleepTimerFinishPolicy.shouldStopOnIndexChange(true, listOf(1, 2), listOf(2, 3)))
+        assertTrue(SleepTimerFinishPolicy.shouldStopOnIndexChange(true, emptyList(), listOf(2, 3)))
+    }
+    @Test fun `sleep timer stops on playback end state after expiry`() {
+        assertFalse(SleepTimerFinishPolicy.shouldStopOnPlaybackEnd(false, listOf(4)))
+        assertFalse(SleepTimerFinishPolicy.shouldStopOnPlaybackEnd(true, listOf(3)))
+        assertTrue(SleepTimerFinishPolicy.shouldStopOnPlaybackEnd(true, listOf(3, 4)))
+    }
 }

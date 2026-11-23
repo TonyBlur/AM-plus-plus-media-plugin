@@ -1,6 +1,21 @@
 # 更新日志 / Changelog
 
+## v1.3.7 / 19
+
+**v1.3.7 (19)** — Apple Music 7.0.1 (1622) 适配：新增 1622 宿主 profile，更新播放器按钮行、播放页进度/音量、歌词 Fragment、分享与下载等契约映射；AM++ 宿主需使用 v1.6.9 或更新版本。（HXJ）
+Apple Music 7.0.1 (1622) adaptation: adds the 1622 host profile and remaps player buttons, progress/volume, lyrics fragment, sharing and download contracts. Requires AM++ host v1.6.9 or newer. (HXJ)
+
+- 新增 Apple Music 7.0.1 (1622) profile / Adds the Apple Music 7.0.1 (1622) profile.
+- 更新 1622 类名、字段、方法与资源映射 / Updates 1622 class, field, method and resource mappings.
+- 播放页音量条、自动过渡、iOS 控制按钮、音质/删除/睡眠弹窗在新版本上保持可用 / Volume bar, AutoMix, iOS controls and glass dialogs remain available on the new version.
+
 最新版本在前。Newest first.
+
+## v1.3.7 / 19
+
+- 新增 Apple Music 7.0.2（1624）profile。已用安装包静态校验宿主接口与资源，菜单、导航和睡眠定时仍需真机验收。
+
+**v1.3.7 (19)** - 在睡眠定时选择菜单末尾增加「播放完最后一个曲目再停止」开关，并持久化用户选择；新增 Apple Music 7.0.1 / 1622 借用上游 AM++ profile 核心契约生成的候选适配。候选 profile 尚未替代真机 APK 校验，安装前请先运行 1622 设备验收。
 
 ## v1.3.6 / 18
 
